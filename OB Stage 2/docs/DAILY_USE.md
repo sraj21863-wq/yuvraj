@@ -1,8 +1,49 @@
 # Entering new data and refreshing the dashboard
 
-Two loops. The short one you run every time new orders arrive. The long one you
-run when you have finished with an export and the next one is about to replace
-it. Both are below, with exact cells.
+---
+
+## First: getting the folder onto your computer
+
+The `OB Stage 2` folder does not exist on your PC yet. It was built on a cloud
+machine and pushed to your GitHub repository, so it lives there until you
+download it. That is why you cannot find it in Explorer.
+
+**The quick way — download a ZIP**
+
+1. Open <https://github.com/sraj21863-wq/yuvraj>
+2. Click the **branch** button (it says `main`) and pick
+   **`claude/live-dashboard-order-booking-nddjvm`**
+3. Click the green **Code** button, then **Download ZIP**
+4. Right-click the ZIP in your Downloads folder and choose **Extract All**
+5. Inside the extracted folder you will find **`OB Stage 2`**. Move it wherever
+   you keep your work — your Documents folder is fine.
+
+> Extract the ZIP before opening anything. Windows lets you look inside a ZIP as
+> if it were a folder, but Excel and Python cannot write to files in there, so
+> the dashboard will fail in confusing ways if you skip this step.
+
+**Or, if you have Git installed**
+
+```
+git clone https://github.com/sraj21863-wq/yuvraj.git
+cd yuvraj
+git checkout claude/live-dashboard-order-booking-nddjvm
+```
+
+Either way you end up with the same thing:
+
+```
+OB Stage 2\
+├── Order_Booking_Master_STAGE2.xlsx    <- the workbook you paste into
+├── dashboard\                          <- the page
+├── pipeline\                           <- run_service.cmd lives here
+└── docs\                               <- this file
+```
+
+**You also need Python**, once. Get it from <https://www.python.org/downloads/>
+and — this matters — tick **"Add python.exe to PATH"** on the first screen of
+the installer. Everything else installs itself the first time you run
+`run_service.cmd`.
 
 ---
 
@@ -176,6 +217,53 @@ them; `personAliases` in `config.json` fixes it.
 **Excel had the file open and the refresh failed**
 It does not fail — the service reads a copy when Excel holds the lock, and the
 band then says "via working copy" so you know it happened.
+
+---
+
+## Running it from VS Code
+
+You do not need VS Code for this — `run_service.cmd` does the same job with a
+double-click. But if you would rather work in VS Code:
+
+1. **File → Open Folder** and pick the `OB Stage 2` folder (the folder itself,
+   not the one above it). The Explorer panel on the left should show
+   `dashboard`, `docs` and `pipeline`.
+2. **Terminal → New Terminal** (or Ctrl+`). It opens at the folder you just
+   opened.
+3. First time only, install the one library the pipeline needs:
+
+   ```
+   pip install -r "pipeline/requirements.txt"
+   ```
+
+4. Start the service:
+
+   ```
+   python "pipeline/serve.py"
+   ```
+
+5. The terminal prints:
+
+   ```
+   Order Booking Stage 2 service
+     dashboard  http://127.0.0.1:8787/
+     payload    http://127.0.0.1:8787/data.json
+     health     http://127.0.0.1:8787/health
+     watching   ...\Order_Booking_Master_STAGE2.xlsx
+     Ctrl-C to stop.
+   ```
+
+   Ctrl-click that first address, or type it into your browser.
+6. Leave the terminal running while you use the dashboard. **Ctrl+C** stops it.
+
+**Do not use the Live Server extension for this page.** Live Server serves files
+on port 5500 and knows nothing about the workbook, so the dashboard cannot reach
+its data and falls back to the snapshot — that is exactly the "SNAPSHOT — STALE,
+not live" banner. The service on port 8787 serves the page *and* the data, so
+there is only one address and it is always live.
+
+If port 8787 is already taken, change `service.port` in `pipeline\config.json`
+and use the new number.
 
 ---
 

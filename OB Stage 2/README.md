@@ -33,6 +33,15 @@ OB Stage 2/
     └── reconciliation.txt             what the last data build could not match — read this
 ```
 
+## Getting it onto your computer
+
+This folder lives in the repository, not on your PC. Download it first:
+open <https://github.com/sraj21863-wq/yuvraj>, switch to the branch
+`claude/live-dashboard-order-booking-nddjvm`, then **Code → Download ZIP** and
+extract it. You also need Python once, from python.org, with **"Add python.exe
+to PATH"** ticked. Step-by-step, including VS Code, is in
+**[docs/DAILY_USE.md](docs/DAILY_USE.md)**.
+
 ## Running it
 
 Double-click **`pipeline\run_service.cmd`**. It installs `openpyxl` if it is

@@ -39,7 +39,10 @@ body{display:flex;align-items:flex-start;justify-content:center;min-height:100vh
 #scaler{transform-origin:top center}
 .sheet{width:1700px;height:955px;background:var(--bg);padding:9px 16px 7px;
   display:grid;grid-template-columns:minmax(0,1fr);
-  grid-template-rows:auto auto auto auto auto 1fr auto;gap:7px;overflow:hidden}
+  /* Eight bands, eight rows. With only seven listed, the 1fr landed on the
+     money band and stretched it while the main area fell into an implicit
+     auto row -- the bands and the row list have to stay in step. */
+  grid-template-rows:auto auto auto auto auto auto 1fr auto;gap:7px;overflow:hidden}
 /* Every band is a grid item, and a grid item defaults to min-width:auto - it
    refuses to shrink below its own content. One long unbreakable label anywhere
    then widens the whole sheet past the 1700px the fit-to-page maths assumes,
@@ -145,13 +148,12 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
    Right column: every sales person by name, full height - the list is the one
    panel whose length is set by the data rather than by the layout. */
 .main{display:grid;
-  grid-template-columns:610px 500px 1fr;
-  grid-template-rows:378px minmax(150px,1fr);
+  grid-template-columns:700px 460px 1fr;
+  grid-template-rows:246px minmax(150px,1fr);
   gap:9px;min-height:0}
-.a-pivot{grid-column:1;grid-row:1}
-.a-notes{grid-column:1;grid-row:2}
-.a-trend{grid-column:2;grid-row:1}
-.a-heat {grid-column:2;grid-row:2}
+.a-pivot{grid-column:1;grid-row:1 / span 2}
+.a-heat {grid-column:2;grid-row:1}
+.a-notes{grid-column:2;grid-row:2}
 .a-people{grid-column:3;grid-row:1 / span 2}
 .main > *{min-width:0;min-height:0}
 .card{background:var(--panel);border:1px solid var(--line);padding:8px 11px 7px;
@@ -161,7 +163,7 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
 .ct{font-family:var(--disp);font-size:14.5px;font-weight:700;letter-spacing:.045em;
   text-transform:uppercase;color:var(--l1);display:flex;align-items:center;gap:6px;
   white-space:nowrap;flex:0 0 auto}
-.a-heat .ct,.a-notes .ct,.a-trend .ct{font-size:13px;letter-spacing:.06em}
+.a-heat .ct,.a-notes .ct{font-size:13px;letter-spacing:.06em}
 .ch .cs{flex:1 1 auto;white-space:nowrap;overflow:hidden}
 .cs{font-family:var(--mono);font-size:8.2px;color:var(--muted);letter-spacing:.13em;
   text-transform:uppercase;text-align:right}
@@ -169,11 +171,10 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
   text-transform:uppercase;margin-top:4px;align-items:center;flex-wrap:wrap}
 .legend i{width:9px;height:9px;display:inline-block;margin-right:4px;vertical-align:-1px}
 .legend .ln{width:11px;height:2px;background:var(--target);display:inline-block;margin-right:4px;vertical-align:2px}
-#trendBox svg{display:block;max-width:100%}
-#trendBox text{font-family:var(--body);fill:var(--muted)}
+text{font-family:var(--body);fill:var(--muted)}
 
 /* ---------- pivot ---------- */
-.pv{width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums}
+.pv{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
 /* The card is sized for the most rows the table can ever have - filters only
    ever remove rows - so the grand total and the excluded line are always in
    view without a scrollbar. The headings are pinned anyway, so a narrow window
@@ -182,24 +183,24 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
 .pv thead th.grp{background:var(--panel2)}
 .pv tfoot tr.gt td{background:var(--accFill)}
 .pv tfoot tr.xrow td{background:var(--panel)}
-.pv th{font-family:var(--mono);font-size:7.6px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);font-weight:500;padding:2.5px 5px;text-align:right;border-bottom:1px solid var(--line)}
+.pv th{font-family:var(--mono);font-size:9.2px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}
 .pv th.l{text-align:left}
 .pv th.grp{text-align:center;color:var(--l1);font-weight:600;background:var(--panel2);
   border-bottom:1px solid var(--line);letter-spacing:.13em}
-.pv td{padding:1.5px 5px;text-align:right;border-bottom:1px solid var(--hair2);color:var(--l2);
+.pv td{padding:4.8px 8px;text-align:right;border-bottom:1px solid var(--hair2);color:var(--l2);
   line-height:1.16}
 .pv td.l,.pv td.seg{text-align:left}
-.pv td.seg{font-family:var(--disp);font-size:10.5px;color:var(--l1);letter-spacing:.05em;text-transform:uppercase}
+.pv td.seg{font-family:var(--disp);font-size:13.8px;color:var(--l1);letter-spacing:.05em;text-transform:uppercase}
 .pv td.num{font-weight:600;color:var(--l1)}
 .pv tr.tot td{background:rgba(143,163,191,.13);font-weight:600;color:var(--l1);
   border-bottom:1px solid var(--line)}
 .pv tr.gt td{background:var(--accFill);color:#fff;font-weight:700;border-bottom:none}
 .pv tr.gt td.seg{color:#fff}
 .pv tr.sub:hover td{background:rgba(143,163,191,.10)}
-.pv td.pc{font-family:var(--mono);font-size:9px;font-weight:600;position:relative;
-  padding-right:6px;padding-bottom:4px;min-width:66px}
-.mini{position:absolute;left:5px;right:6px;bottom:1.5px;height:2.5px;background:#DEE3E9}
+.pv td.pc{font-family:var(--mono);font-size:11.5px;font-weight:600;position:relative;
+  padding-right:8px;padding-bottom:9.5px;min-width:90px}
+.mini{position:absolute;left:7px;right:8px;bottom:3.5px;height:3.5px;background:#DEE3E9}
 .mini i{position:absolute;left:0;top:0;bottom:0;background:var(--book)}
 .mini u{position:absolute;top:-1.5px;bottom:-1.5px;width:1.5px;background:var(--l1)}
 .c-lo{color:var(--neg)} .c-mid{color:var(--warnInk)} .c-hi{color:var(--pos)}
@@ -207,6 +208,7 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
 .pv tr.gt .mini{background:rgba(255,255,255,.32)} .pv tr.gt .mini i{background:#fff}
 .pv tr.gt .mini u{background:#fff}
 .pv tr.xrow td{border-bottom:none;font-style:italic}
+.pv tfoot tr.gt td{font-size:13.8px}
 
 /* ---------- matrix ---------- */
 .mx{width:100%;border-collapse:collapse;flex:1}
@@ -320,22 +322,6 @@ footer span:last-child{margin-left:auto}
         <div class="cs" id="pvHead"></div>
       </div>
       <div style="flex:1;overflow:auto;min-height:0"><table class="pv" id="pivot"></table></div>
-    </div>
-
-    <div class="card a-trend">
-      <div class="ch">
-        <div class="ct">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>
-          The Year So Far
-        </div>
-        <div class="cs" id="trHead"></div>
-      </div>
-      <div style="flex:1;min-height:0" id="trendBox"></div>
-      <div class="legend">
-        <span><i style="background:#2F5D96"></i>Booking</span>
-        <span><i class="ln"></i>Monthly target</span>
-        <span><i style="background:rgba(47,93,150,.16)"></i>Not yet booked</span>
-      </div>
     </div>
 
     <div class="card a-heat">
@@ -755,78 +741,6 @@ function buildMoneyBand(bookedOpen, bookedInvoiced){
     '<span class="mb-n">₹ Cr · booked value and money are different measures</span>';
 }
 
-/* ---------------- the year so far ---------------- */
-function buildTrend(){
-  const regs=R(), segs=S();
-  const box = document.getElementById('trendBox');
-  const W = box.clientWidth || 490, H = Math.max(box.clientHeight || 250, 120);
-  const padL = 30, padR = 8, padT = 16, padB = 22;
-  const iw = W - padL - padR, ih = H - padT - padB;
-  const n = 12, gap = 5, bw = Math.max(6, (iw - gap*(n-1)) / n);
-
-  const act = [], tgt = [];
-  for(let m=1;m<=12;m++){ act.push(sum(A,[m],regs,segs)); tgt.push(sum(T,[m],regs,segs)); }
-  const top = Math.max(Math.max(...act), Math.max(...tgt), 0.1) * 1.18;
-  const y = v => padT + ih - (v/top)*ih;
-  const x = i => padL + i*(bw+gap);
-
-  let g = '';
-  /* recessive gridlines only - four of them, labelled */
-  const step = niceStep(top/4);
-  for(let v=0; v<=top; v+=step){
-    g += `<line x1="${padL}" x2="${W-padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#E4E9EF" stroke-width="1"/>`
-       + `<text x="${padL-5}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" style="font-size:8px;fill:#8C99A8;font-family:var(--mono)">${v.toFixed(0)}</text>`;
-  }
-
-  const maxA = Math.max(...act);
-  for(let i=0;i<12;i++){
-    const a = act[i], t = tgt[i], future = a === 0 && i+1 > LASTM;
-    const h = Math.max(a>0 ? y(0)-y(a) : 0, 0);
-    const fill = future ? 'var(--bookSoft)' : (i+1===F.month ? '#24507F' : 'var(--book)');
-    if(a>0){
-      g += `<rect x="${x(i).toFixed(1)}" y="${y(a).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${fill}"/>`;
-    } else if (t>0){
-      g += `<rect x="${x(i).toFixed(1)}" y="${y(t).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0)-y(t)).toFixed(1)}" rx="3" fill="var(--bookSoft)"/>`;
-    }
-    if(t>0){
-      g += `<line x1="${(x(i)-1).toFixed(1)}" x2="${(x(i)+bw+1).toFixed(1)}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="var(--target)" stroke-width="2" stroke-linecap="round"/>`;
-    }
-    /* label the months that carry the story: the current one and the best one */
-    if(a>0 && (i+1===F.month || a===maxA)){
-      g += `<text x="${(x(i)+bw/2).toFixed(1)}" y="${(y(a)-4).toFixed(1)}" text-anchor="middle" style="font-family:var(--disp);font-size:10px;font-weight:700;fill:#132539">${a.toFixed(1)}</text>`;
-    }
-    g += `<text x="${(x(i)+bw/2).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" style="font-size:8.2px;font-family:var(--mono);letter-spacing:.04em;fill:${i+1===F.month?'#132539':'#8C99A8'};font-weight:${i+1===F.month?600:400}">${MN[i]}</text>`;
-    g += `<rect class="tz" data-m="${i+1}" x="${(x(i)-gap/2).toFixed(1)}" y="${padT}" width="${(bw+gap).toFixed(1)}" height="${ih.toFixed(1)}" fill="transparent"/>`;
-  }
-  g += `<line x1="${padL}" x2="${W-padR}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#C3CBD4" stroke-width="1"/>`;
-
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
-    aria-label="Monthly booking against monthly target, ${MN[0]} to ${MN[11]}">${g}</svg>`;
-
-  box.querySelectorAll('.tz').forEach(z=>{
-    const i = +z.dataset.m - 1, a = act[i], t = tgt[i];
-    const done = i+1 <= LASTM;
-    bindTip(z, '<b>'+MN[i]+' '+(DATA.fiscalYear||'')+'</b>'
-      + trow('Booking', done ? a.toFixed(2)+' Cr' : 'not booked yet')
-      + trow('Target', t.toFixed(2)+' Cr')
-      + (done && t ? trow('Completion', pct(a/t)) : '')
-      + (done && t ? trow(a>=t?'Ahead by':'Short by', Math.abs(a-t).toFixed(2)+' Cr') : '')
-      + '<div class="tn">'+(done ? 'Click the month chip above to make this the MTD month.'
-                                 : 'Future month — the pale bar is its target, not booking.')+'</div>');
-    z.style.cursor = done ? 'pointer' : 'default';
-    if(done) z.addEventListener('click', ()=>{ F.month = i+1; tipHide(); render(); });
-  });
-
-  const ya = sum(A,ytdM(),regs,segs), run = ya/F.month;
-  document.getElementById('trHead').textContent =
-    'Monthly · run rate ' + run.toFixed(1) + ' Cr · ₹ Cr';
-}
-function niceStep(raw){
-  const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw,1e-6))));
-  const n = raw/p;
-  return (n<1.5?1:n<3?2:n<7?5:10)*p;
-}
-
 /* ---------------- sales person ---------------- */
 const SHORT = n => { const p = String(n).split(',');
   return (p.length>1 ? p[1].trim()+' '+p[0].trim() : n).replace(/\s+/g,' ').trim(); };
@@ -1119,9 +1033,10 @@ function buildComments(){
     body:`Current run rate <b>${run.toFixed(1)} Cr</b>/month projects <b>${proj.toFixed(0)} Cr</b> against the full-year plan of <b>${fy.toFixed(0)} Cr</b>. ${left>0?`The remaining ${left} month${left===1?'':'s'} need <b>${((fy-ya)/left).toFixed(1)} Cr</b>/month.`:'The year is complete.'}`});
 
   const el = document.getElementById('comments');
-  /* Five slots. The first three are always the headline and the two extremes;
-     the rest are taken in the order they were pushed. */
-  el.innerHTML = out.slice(0,5).map(c=>
+  /* Six slots, in the order they were pushed. The run-rate note is back in the
+     last of them: the trend chart that used to carry the shape of the year has
+     been taken out, and nothing else on the page projects forward. */
+  el.innerHTML = out.slice(0,6).map(c=>
     `<div class="cmt"><div class="ico"><svg viewBox="0 0 24 24">${c.ic}</svg></div>
       <div class="ctxt"><div class="key">${c.key}<span class="tag ${c.good?'':'g'}">${c.tag}</span></div>
       <div class="cbody">${c.body}</div></div></div>`).join('');
@@ -1148,7 +1063,7 @@ function fitComments(el){
 
 /* ---------------- render ---------------- */
 function render(){
-  buildFilters(); buildKPIs(); buildPivot(); buildTrend(); buildMatrix();
+  buildFilters(); buildKPIs(); buildPivot(); buildMatrix();
   buildPeople(); buildComments();
   const rTxt = F.regions.size===REGS.length?'All regions':[...F.regions].map(r=>RSHORT[r]||r).join(' + ');
   const sTxt = F.segments.size===SEGS.length?'All segments':[...F.segments].map(s=>SNAME[s]||s).join(' + ');
@@ -1170,7 +1085,7 @@ let fitTimer=null;
 window.addEventListener('resize',()=>{
   fit();
   clearTimeout(fitTimer);
-  fitTimer=setTimeout(()=>{ buildTrend(); buildPeople(); buildComments(); },120);
+  fitTimer=setTimeout(()=>{ buildPeople(); buildComments(); },120);
 });
 OB.boot(function(){
   bindData(); render(); fit();
@@ -1179,7 +1094,7 @@ OB.boot(function(){
      own content have to be measured again. */
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(function () {
-      buildTrend(); buildPeople(); buildComments();
+      buildPeople(); buildComments();
     });
   }
 });
