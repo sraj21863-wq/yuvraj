@@ -21,10 +21,13 @@ OB Stage 2/
 │   ├── serve.py                       the live data service
 │   ├── run_service.cmd / .sh          start the service and open the dashboard
 │   ├── refresh.cmd / .sh              rebuild the offline snapshot only
+│   ├── roll_forward.cmd / .sh         freeze the live block, lay a fresh one under it
+│   ├── build_share_page.py            fold the dashboard into one mailable file
 │   ├── build_stage2_workbook.py       how the Stage 2 workbook was built (re-runnable)
 │   ├── verify_stage2.py               proves the workbook's live block still works
 │   └── xlsx_surgery.py                the OOXML helpers those two use
 └── docs/
+    ├── DAILY_USE.md                   pasting new data and refreshing — start here
     ├── PIPELINE.md                    how the workbook feeds the dashboard, end to end
     ├── build_report.txt               what the workbook build did, sheet by sheet
     └── reconciliation.txt             what the last data build could not match — read this
@@ -49,6 +52,10 @@ because it is not live and should not claim to be.
 - `http://127.0.0.1:8787/refresh` — force a rebuild.
 
 macOS and Linux: use `run_service.sh` and `refresh.sh`.
+
+**Entering new data:** paste the export at `ASO_Raw!A2`, save, refresh the page.
+Full steps, including the 500-row window and when to run `roll_forward.cmd`, are
+in **[docs/DAILY_USE.md](docs/DAILY_USE.md)**.
 
 ## What the dashboard will not do
 
