@@ -91,7 +91,7 @@ window.OB_SNAPSHOT = {
   "Open order": 1254,
   "Short close": 2
  },
- "checksum": "96360ce9616c07dc",
+ "checksum": "559548cd4ae5adc6",
  "count": {
   "1|EAST/WEST|CP": 18,
   "1|EAST/WEST|PH": 20,
@@ -208,7 +208,7 @@ window.OB_SNAPSHOT = {
   "Sunil Ponkshe, Nikhil": "Nikhil",
   "Vijaykumar Joshi, Parth": "Parth"
  },
- "generatedAt": "2026-09-10T06:12:51+00:00",
+ "generatedAt": "2026-09-10T06:39:50+00:00",
  "invoicedAmount": {
   "1|EAST/WEST|CP": 6.756253442999999,
   "1|EAST/WEST|PH": 0.453338191,
@@ -687,6 +687,7 @@ window.OB_SNAPSHOT = {
   "8|SOUTH/CENTRAL|RP|Raju, Hitacharan": 0.027543653,
   "8|SOUTH/CENTRAL|RT|(unassigned)": 0.001087705
  },
+ "partialMonth": null,
  "pcount": {
   "1|EAST/WEST|CP|Babar, Harshad": 4,
   "1|EAST/WEST|CP|Jitendra, Kshatriya": 8,
@@ -1986,7 +1987,7 @@ window.OB_SNAPSHOT = {
   "8|SOUTH/CENTRAL|RT": 0.0
  },
  "sourceFile": "Order_Booking_Master_STAGE2.xlsx",
- "sourceModified": "2026-09-10T06:08:06+00:00",
+ "sourceModified": "2026-09-10T06:39:47+00:00",
  "sourceSize": 14839531,
  "sourceVia": "direct",
  "status": {

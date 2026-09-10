@@ -129,6 +129,7 @@ h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
 .pill.up{background:var(--pos);color:#FFFFFF}
 .pill.dn{border:1px solid var(--neg);color:var(--neg);background:transparent}
 .pill.nt{border:1px solid var(--faint);color:var(--muted);background:transparent}
+.pill.part{border:1px solid var(--target);color:var(--warnInk);background:rgba(194,118,15,.12)}
 .track{height:3px;background:#DEE3E9;margin-top:6px;position:relative}
 .track i{position:absolute;left:0;top:0;bottom:0;background:var(--book);display:block}
 .track u{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--l1)}
@@ -532,7 +533,7 @@ var OB = (function () {
 </script>
 <script>
 let MN, REGS, SEGS, A, T, C, ST, SC, PEOPLE, PA, PT, PTM, PC, LASTM, F,
-    EXCL, EXCL_M, EXCL_TOTAL, OPEN_ST, INV_ST, SOIP, INVAMT, ALLST;
+    EXCL, EXCL_M, EXCL_TOTAL, OPEN_ST, INV_ST, SOIP, INVAMT, ALLST, PARTIAL;
 const RSHORT = {'NORTH':'North','SOUTH/CENTRAL':'South/Cen','EAST/WEST':'East/West'};
 const SNAME  = {'PH':'PH','RP':'RP','CP':'CP','RT':'Retail'};
 
@@ -574,10 +575,26 @@ function bindData(){
   OPEN_ST = DATA.openStatuses || ['Open order'];
   INV_ST  = DATA.invoicedStatuses || ['Invoiced'];
   LASTM = DATA.latestMonth || MN.length;
+  /* Set when the newest month is still running. Every figure stays exactly as
+     the workbook states it -- a part-month is marked, not quietly rescaled --
+     so a shortfall that is really just the calendar cannot be read as
+     underperformance. Switch partialMonth.mode to "prorate" in config.json to
+     scale that month's target by the days elapsed instead. */
+  PARTIAL = (DATA.partialMonth && typeof DATA.partialMonth === 'object')
+              ? DATA.partialMonth : null;
   F = {month:LASTM, regions:new Set(REGS), segments:new Set(SEGS), spView:'MTD'};
   document.getElementById('title').textContent =
     (window.OB_CONFIG && window.OB_CONFIG.title) || 'Order Booking Performance';
 }
+
+/* true when the month on screen has not finished yet */
+const isPartial = m => !!(PARTIAL && PARTIAL.month === m);
+const partialDays = () => PARTIAL ? PARTIAL.daysElapsed + ' of ' + PARTIAL.daysInMonth + ' days' : '';
+const partialWhy = () => !PARTIAL ? '' :
+  MN[PARTIAL.month-1] + ' is still running \u2014 ' + partialDays() + ' as at ' + PARTIAL.asOf + '. '
+  + (PARTIAL.mode === 'prorate'
+      ? 'Its target has been scaled to the days elapsed, so this month and the year to date stay comparable.'
+      : 'Its full monthly target counts, so this month and the year to date will read short until the month closes. Nothing here has been rescaled.');
 
 const num = (v,d=1)=> (v===0?(0).toFixed(d):v.toFixed(d));
 const pct = v => (isFinite(v) ? (v*100).toFixed(0)+'%' : '—');
@@ -685,10 +702,14 @@ function buildKPIs(){
     ? `<span class="pill ${ma>=prev?'up':'dn'}">${ma>=prev?'+':'−'}${Math.abs((ma-prev)/prev*100).toFixed(0)}%</span><span>on ${MN[F.month-2]} ${prev.toFixed(1)}</span>`
     : `<span class="pill nt">first month</span>`;
 
+  const openTag = isPartial(F.month)
+    ? '<span class="pill part" title="'+OB.esc(partialWhy())+'">IN PROGRESS \u00b7 '+partialDays()+'</span>'
+    : '';
   document.getElementById('kpis').innerHTML =
     card(MN[F.month-1]+' MTD Booking','<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',
-      num(ma),'Cr',gap(ma,mt),mt?ma/mt:0,100,
-      'Order value released in '+MN[F.month-1]+', from the register’s booking-month column.')
+      num(ma),'Cr',gap(ma,mt)+openTag,mt?ma/mt:0,100,
+      'Order value released in '+MN[F.month-1]+', from the register’s booking-month column.'
+      + (isPartial(F.month) ? '\n\n'+partialWhy() : ''))
   + card('MTD Completion','<circle cx="12" cy="12" r="9"/><path d="M12 12l4-2"/><path d="M12 12V7"/>',
       pct(mt?ma/mt:NaN),'',momTxt,mt?ma/mt:0,100,
       MN[F.month-1]+' against its own target. The pill compares it with the month before, '
@@ -697,9 +718,12 @@ function buildKPIs(){
       num(ya),'Cr',gap(ya,yt),yt?ya/yt:0,100,
       'Jan–'+MN[F.month-1]+' booking for the current filter.')
   + card('YTD Completion','<path d="M20 6L9 17l-5-5"/>',pct(yt?ya/yt:NaN),'',
-      `<span class="pill ${ya>=yt?'up':'dn'}">${ya>=yt?'AHEAD':'BEHIND'}</span><span>${fy?(ya/fy*100).toFixed(0):'—'}% of full year ${fy.toFixed(0)} Cr</span>`,
+      `<span class="pill ${ya>=yt?'up':'dn'}">${ya>=yt?'AHEAD':'BEHIND'}</span><span>${
+        isPartial(F.month) ? 'includes '+MN[F.month-1]+' part-month'
+                           : (fy?(ya/fy*100).toFixed(0):'—')+'% of full year '+fy.toFixed(0)+' Cr'}</span>`,
       yt?ya/yt:0,100,
-      'Booking against the target for the months elapsed — not against the whole year.')
+      'Booking against the target for the months elapsed — not against the whole year.'
+      + (isPartial(F.month) ? '\n\n'+partialWhy() : ''))
   + card('Order Book · Still Open','<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
       num(open),'Cr',
       `<span class="pill nt">${orders} orders</span><span>${inv.toFixed(1)} Cr invoiced${Math.abs(other)>0.005?' · '+other.toFixed(1)+' other':''}</span>`,
@@ -972,7 +996,8 @@ function buildPivot(){
   h += '</tfoot>';
   document.getElementById('pivot').innerHTML=h;
   document.getElementById('pvHead').textContent=
-    MN[F.month-1]+' MTD & Jan–'+MN[F.month-1]+' YTD · ₹ Cr';
+    MN[F.month-1]+' MTD & Jan–'+MN[F.month-1]+' YTD · ₹ Cr'
+    + (isPartial(F.month) ? ' · '+MN[F.month-1]+' in progress, '+partialDays() : '');
 }
 
 /* ---------------- comments ---------------- */
@@ -993,7 +1018,7 @@ function buildComments(){
   const yOK=ya>=yt;
   out.push({ic:yOK?CIC.up:CIC.down, key:'Overall — '+(yOK?'on track':'behind'),
     tag:yOK?'AHEAD':'BEHIND', good:yOK,
-    body:`YTD booking <b>${ya.toFixed(1)} Cr</b> against target <b>${yt.toFixed(1)} Cr</b> — <b>${pct(yt?ya/yt:NaN)}</b> achieved, ${(ya-yt>=0?'ahead by ':'short by ')}<b>${Math.abs(ya-yt).toFixed(1)} Cr</b>. ${MN[F.month-1]} closed at <b>${ma.toFixed(1)} Cr</b> against <b>${mt.toFixed(1)} Cr</b> (${pct(mt?ma/mt:NaN)}).`});
+    body:`YTD booking <b>${ya.toFixed(1)} Cr</b> against target <b>${yt.toFixed(1)} Cr</b> — <b>${pct(yt?ya/yt:NaN)}</b> achieved, ${(ya-yt>=0?'ahead by ':'short by ')}<b>${Math.abs(ya-yt).toFixed(1)} Cr</b>. ${MN[F.month-1]} ${isPartial(F.month)?'stands at':'closed at'} <b>${ma.toFixed(1)} Cr</b> against <b>${mt.toFixed(1)} Cr</b> (${pct(mt?ma/mt:NaN)}).${isPartial(F.month)?` <b>${MN[F.month-1]} is only ${partialDays()} old</b> — ${PARTIAL.mode==='prorate'?'its target is scaled to match':'its whole monthly target is already counted, so both figures read short until the month closes'}.`:''}`});
 
   const cells=[];
   regs.forEach(r=>segs.forEach(s=>{
@@ -1068,7 +1093,8 @@ function render(){
   const rTxt = F.regions.size===REGS.length?'All regions':[...F.regions].map(r=>RSHORT[r]||r).join(' + ');
   const sTxt = F.segments.size===SEGS.length?'All segments':[...F.segments].map(s=>SNAME[s]||s).join(' + ');
   document.getElementById('subline').textContent =
-    `FY ${DATA.fiscalYear||''} · ${rTxt} · ${sTxt} · Actual against target · Values in ₹ Crore`;
+    `FY ${DATA.fiscalYear||''} · ${rTxt} · ${sTxt} · Actual against target · Values in ₹ Crore`
+    + (isPartial(F.month) ? ` · ${MN[F.month-1]} in progress (${partialDays()})` : '');
   document.getElementById('stampBig').textContent = MN[F.month-1].toUpperCase()+' '+(DATA.fiscalYear||'');
   document.getElementById('stampSm').textContent = 'MTD · YTD Jan–'+MN[F.month-1];
 }

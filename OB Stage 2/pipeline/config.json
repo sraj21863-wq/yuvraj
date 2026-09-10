@@ -81,6 +81,11 @@
     "_comment": "Anything else (Short close, Canceled) is counted and reported separately -- it is booking value that is neither open nor invoiced and must not be folded into either."
   },
 
+  "partialMonth": {
+    "mode": "flag",
+    "_comment": "What to do about the latest month when it is still running. 'flag' leaves every number exactly as the workbook states it and marks the month as in progress on screen, so a part-month shortfall is not read as underperformance. 'prorate' instead scales that month's target to the days elapsed, which keeps YTD comparable mid-month at the cost of a target figure that is calculated here rather than read from the sheet."
+  },
+
   "freshness": {
     "warnAfterHours": 6,
     "staleAfterHours": 30

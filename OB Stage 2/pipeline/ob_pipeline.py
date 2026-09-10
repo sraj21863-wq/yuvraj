@@ -345,6 +345,30 @@ def build(cfg, workbook_path, source_via, warn):
 
     latest = max([int(k.split('|')[0]) for k in actual] or [1])
 
+    # Is the latest month still running? A month that is ten days old is being
+    # measured against a whole month's target, which reads as a shortfall that
+    # is really just the calendar. The workbook's own save date says how far
+    # through that month the data goes.
+    partial = None
+    asof = dt.date.fromtimestamp(os.stat(workbook_path).st_mtime)
+    if asof.year == fy and asof.month == latest:
+        import calendar
+        days_in = calendar.monthrange(asof.year, asof.month)[1]
+        partial = {'month': latest, 'daysElapsed': asof.day, 'daysInMonth': days_in,
+                   'asOf': asof.isoformat(), 'mode': cfg.get('partialMonth', {}).get('mode', 'flag')}
+        if partial['mode'] == 'prorate':
+            share = asof.day / float(days_in)
+            for store in (target, ptarget_month):
+                for key in list(store):
+                    if int(key.split('|')[0]) == latest:
+                        store[key] *= share
+            partial['applied'] = 'target scaled to %d/%d of the month' % (asof.day, days_in)
+        else:
+            partial['applied'] = 'none -- the full monthly target counts'
+        warn('%s %d is only %d of %d days old; its target is shown %s'
+             % (cfg['months'][latest - 1], fy, asof.day, days_in,
+                'pro-rated' if partial['mode'] == 'prorate' else 'in full'))
+
     src_stat = os.stat(workbook_path)
     payload = {
         'schema': 'ob-dashboard/2',
@@ -359,6 +383,7 @@ def build(cfg, workbook_path, source_via, warn):
         'regions': regions,
         'segments': segments,
         'latestMonth': latest,
+        'partialMonth': partial,
         'actual': actual,
         'target': target,
         'count': count,

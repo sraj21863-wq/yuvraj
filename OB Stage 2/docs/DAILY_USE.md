@@ -209,6 +209,15 @@ those two sheets carry the money.
 Either the export went in below row 501 of `ASO_Raw` (the window is full — run
 the long loop), or it was pasted somewhere other than `A2`.
 
+**The current month reads BEHIND when it has barely started**
+Expected, and now labelled. While the newest month is still running, the page
+marks it *IN PROGRESS · n of m days* on the MTD tile, in the subtitle, on the
+pivot heading and in the first comment. Its full monthly target still counts —
+nothing is rescaled behind your back — so both that month and the year to date
+read short until the month closes. If you would rather the target be scaled to
+the days elapsed, set `partialMonth.mode` to `"prorate"` in
+`pipeline\config.json`; the page then says so instead.
+
 **A sales person shows "—" instead of a percentage**
 They have no row in `Monthly Booking Target (2)` under that spelling. Their
 booking still counts everywhere else on the page. `reconciliation.txt` names
