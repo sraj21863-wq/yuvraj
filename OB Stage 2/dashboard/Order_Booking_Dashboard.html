@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Order Booking Performance — Stage 2</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FFFFFF'/%3E%3Crect x='3' y='3' width='26' height='26' fill='none' stroke='%2361779A' stroke-width='2.5'/%3E%3Crect x='9' y='9' width='14' height='14' fill='%232F5D96'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,400;75,600;75,700;75,900;100,400;100,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Panel chrome keeps the house palette. The two chart series are a deeper
+     step of the same blue and amber: the softer house pair failed the
+     colour-vision and contrast checks as data marks (the amber sat above the
+     lightness band, the blue read as grey), and marks have to survive being
+     small. Chrome and marks are therefore separate tokens on purpose. */
+  --bg:#FFFFFF; --panel:#F5F7FA; --panel2:#EAEFF2;
+  --ink:#1A2E44; --accent:#8FA3BF; --acc2:#C7D3E3;
+  --l1:#132539; --l2:#48586B; --accInk:#61779A; --accFill:#6C82A3;
+  --muted:#556579; --faint:#6B7A8D;
+  --line:#D9D9D9; --hair2:#E4E9EF;
+
+  --book:#2F5D96;      /* series 1 - booking      */
+  --target:#C2760F;    /* series 2 - target       */
+  --bookSoft:rgba(47,93,150,.16);
+  --targetSoft:rgba(194,118,15,.16);
+
+  --pos:#1A7A3E; --neg:#B4443F; --warnInk:#8A5209;
+
+  --disp:'Archivo','Arial Narrow',Helvetica,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--l2);font-family:var(--body);
+  font-variation-settings:'wdth' 80;-webkit-font-smoothing:antialiased}
+body{display:flex;align-items:flex-start;justify-content:center;min-height:100vh;overflow:auto}
+#scaler{transform-origin:top center}
+.sheet{width:1700px;height:955px;background:var(--bg);padding:9px 16px 7px;
+  display:grid;grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto auto auto auto auto 1fr auto;gap:7px;overflow:hidden}
+/* Every band is a grid item, and a grid item defaults to min-width:auto - it
+   refuses to shrink below its own content. One long unbreakable label anywhere
+   then widens the whole sheet past the 1700px the fit-to-page maths assumes,
+   and the right-hand edge of the page walks off screen. */
+.sheet > *{min-width:0}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+  border-bottom:1px solid var(--line);padding-bottom:6px;min-width:0}
+.brand{min-width:0}
+.brand{display:flex;align-items:center;gap:11px}
+.mark{width:31px;height:31px;flex:0 0 31px;border:1.5px solid var(--accInk);position:relative}
+.mark::after{content:"";position:absolute;inset:6px;background:var(--accInk)}
+h1{font-family:var(--disp);font-size:29px;font-weight:900;letter-spacing:.02em;
+  text-transform:uppercase;color:var(--l1);line-height:1}
+.sub{font-family:var(--mono);font-size:9.2px;color:var(--muted);letter-spacing:.13em;
+  text-transform:uppercase;margin-top:5px}
+.stamp{text-align:right}
+.stamp .big{font-family:var(--disp);font-size:25px;font-weight:900;color:var(--accInk);
+  letter-spacing:.01em;line-height:1}
+.stamp .sm{font-family:var(--mono);font-size:8.4px;color:var(--muted);letter-spacing:.14em;
+  text-transform:uppercase;margin-top:5px}
+
+/* ---------- provenance bands ---------- */
+.ob-status,.ob-warn{display:flex;align-items:center;gap:8px;padding:3.5px 9px;
+  font-family:var(--mono);font-size:8.6px;letter-spacing:.11em;text-transform:uppercase;
+  border:1px solid var(--line);background:var(--panel);min-height:21px}
+.ob-status .ob-msg,.ob-warn .ob-msg{font-weight:600;color:var(--l1);white-space:nowrap}
+.ob-status .ob-detail,.ob-warn .ob-detail{color:var(--muted);letter-spacing:.07em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ob-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--faint)}
+.ob-live{border-color:rgba(26,122,62,.5);background:rgba(26,122,62,.07)}
+.ob-live .ob-dot{background:var(--pos)}
+.ob-warn-age{border-color:rgba(194,118,15,.55);background:rgba(194,118,15,.09)}
+.ob-warn-age .ob-dot{background:var(--target)}
+.ob-stale{border-color:rgba(180,68,63,.55);background:rgba(180,68,63,.08)}
+.ob-stale .ob-dot{background:var(--neg)}
+.ob-warn{border-color:rgba(194,118,15,.45);background:rgba(194,118,15,.06)}
+.ob-warn .ob-dot{background:var(--target)}
+.ob-fail{max-width:760px;margin:70px auto;padding:26px 30px;border:1px solid var(--neg);
+  background:#FFF;font-family:var(--body);color:var(--l2)}
+.ob-fail h2{font-family:var(--disp);font-size:22px;color:var(--l1);text-transform:uppercase;
+  letter-spacing:.03em;margin-bottom:10px}
+.ob-fail p{font-size:13px;line-height:1.5;margin-bottom:12px}
+.ob-fail li{font-size:12.5px;line-height:1.7;margin-left:18px}
+.ob-fail code{font-family:var(--mono);font-size:11.5px;background:var(--panel);padding:1px 4px}
+.ob-errs{margin-top:14px;font-family:var(--mono);font-size:11px;white-space:pre-wrap;
+  background:var(--panel);border-left:3px solid var(--neg);padding:9px 11px;color:var(--l2)}
+
+/* ---------- filters ---------- */
+.filters{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);padding:5px 10px}
+.fgroup{display:flex;align-items:center;gap:5px}
+.flabel{font-family:var(--mono);font-size:7.6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:4px;margin-right:1px}
+.chip{font-family:var(--mono);font-size:9.2px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--l2);background:var(--bg);border:1px solid var(--line);
+  padding:4px 9px;cursor:pointer;transition:.12s;white-space:nowrap}
+.chip:hover{color:var(--l1);background:rgba(143,163,191,.20);border-color:var(--accent)}
+.chip.on{background:var(--accFill);border-color:var(--accFill);color:#fff;font-weight:600}
+.chip:focus-visible{outline:2px solid var(--l1);outline-offset:1px}
+.sep{width:1px;height:18px;background:var(--line);margin:0 3px}
+.reset{margin-left:auto;font-family:var(--mono);font-size:8.4px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--l2);background:var(--bg);border:1px solid var(--faint);cursor:pointer;padding:4.5px 10px}
+.reset:hover{color:var(--book);border-color:var(--book)}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accFill);
+  padding:6px 12px 7px;position:relative;overflow:hidden;
+  background-image:linear-gradient(180deg,var(--panel2),transparent 62%)}
+.kpi .kh{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:8.2px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.kpi .kv{font-family:var(--disp);font-size:31px;font-weight:900;color:var(--l1);
+  line-height:1.02;margin-top:5px;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+.kpi .kv small{font-family:var(--mono);font-size:10.5px;color:var(--l2);font-weight:600;margin-left:4px}
+.kpi{min-width:0}
+.kpi .kf{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:9.6px;color:var(--l2);
+  font-weight:600;min-width:0}
+.kpi .kf > span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi .kh{min-width:0}
+.pill{font-family:var(--mono);font-size:8.2px;letter-spacing:.1em;padding:2.5px 6px;
+  font-weight:600;border-radius:2px;white-space:nowrap}
+.pill.up{background:var(--pos);color:#FFFFFF}
+.pill.dn{border:1px solid var(--neg);color:var(--neg);background:transparent}
+.pill.nt{border:1px solid var(--faint);color:var(--muted);background:transparent}
+.track{height:3px;background:#DEE3E9;margin-top:6px;position:relative}
+.track i{position:absolute;left:0;top:0;bottom:0;background:var(--book);display:block}
+.track u{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:var(--l1)}
+
+/* ---------- money band ---------- */
+.money{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:3.5px 10px;overflow:hidden;
+  border:1px solid var(--line);background:var(--panel);
+  font-family:var(--mono);font-size:8.8px;letter-spacing:.07em;color:var(--muted);min-height:23px}
+.mb-h{text-transform:uppercase;letter-spacing:.15em;font-size:7.8px;color:var(--faint);font-weight:600}
+.mb-i{color:var(--l2)} .mb-i b{font-family:var(--disp);font-size:12.5px;color:var(--l1);margin-right:3px}
+.mb-sep{width:1px;height:15px;background:var(--line)}
+.mb-n{margin-left:auto;font-size:8px;color:var(--faint);letter-spacing:.09em;text-transform:uppercase}
+
+/* ---------- body grid ----------
+   Left column: the pivot everybody reads, with the auto-written comments under it.
+   Middle column: the year's shape on top, the region x segment grid below it.
+   Right column: every sales person by name, full height - the list is the one
+   panel whose length is set by the data rather than by the layout. */
+.main{display:grid;
+  grid-template-columns:610px 500px 1fr;
+  grid-template-rows:378px minmax(150px,1fr);
+  gap:9px;min-height:0}
+.a-pivot{grid-column:1;grid-row:1}
+.a-notes{grid-column:1;grid-row:2}
+.a-trend{grid-column:2;grid-row:1}
+.a-heat {grid-column:2;grid-row:2}
+.a-people{grid-column:3;grid-row:1 / span 2}
+.main > *{min-width:0;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);padding:8px 11px 7px;
+  display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.ch{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:6px}
+.ct{font-family:var(--disp);font-size:14.5px;font-weight:700;letter-spacing:.045em;
+  text-transform:uppercase;color:var(--l1);display:flex;align-items:center;gap:6px;
+  white-space:nowrap;flex:0 0 auto}
+.a-heat .ct,.a-notes .ct,.a-trend .ct{font-size:13px;letter-spacing:.06em}
+.ch .cs{flex:1 1 auto;white-space:nowrap;overflow:hidden}
+.cs{font-family:var(--mono);font-size:8.2px;color:var(--muted);letter-spacing:.13em;
+  text-transform:uppercase;text-align:right}
+.legend{display:flex;gap:12px;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.07em;
+  text-transform:uppercase;margin-top:4px;align-items:center;flex-wrap:wrap}
+.legend i{width:9px;height:9px;display:inline-block;margin-right:4px;vertical-align:-1px}
+.legend .ln{width:11px;height:2px;background:var(--target);display:inline-block;margin-right:4px;vertical-align:2px}
+#trendBox svg{display:block;max-width:100%}
+#trendBox text{font-family:var(--body);fill:var(--muted)}
+
+/* ---------- pivot ---------- */
+.pv{width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums}
+/* The card is sized for the most rows the table can ever have - filters only
+   ever remove rows - so the grand total and the excluded line are always in
+   view without a scrollbar. The headings are pinned anyway, so a narrow window
+   that does force a scroll still shows what each column is. */
+.pv thead th{position:sticky;top:0;z-index:2;background:var(--panel)}
+.pv thead th.grp{background:var(--panel2)}
+.pv tfoot tr.gt td{background:var(--accFill)}
+.pv tfoot tr.xrow td{background:var(--panel)}
+.pv th{font-family:var(--mono);font-size:7.6px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;padding:2.5px 5px;text-align:right;border-bottom:1px solid var(--line)}
+.pv th.l{text-align:left}
+.pv th.grp{text-align:center;color:var(--l1);font-weight:600;background:var(--panel2);
+  border-bottom:1px solid var(--line);letter-spacing:.13em}
+.pv td{padding:1.5px 5px;text-align:right;border-bottom:1px solid var(--hair2);color:var(--l2);
+  line-height:1.16}
+.pv td.l,.pv td.seg{text-align:left}
+.pv td.seg{font-family:var(--disp);font-size:10.5px;color:var(--l1);letter-spacing:.05em;text-transform:uppercase}
+.pv td.num{font-weight:600;color:var(--l1)}
+.pv tr.tot td{background:rgba(143,163,191,.13);font-weight:600;color:var(--l1);
+  border-bottom:1px solid var(--line)}
+.pv tr.gt td{background:var(--accFill);color:#fff;font-weight:700;border-bottom:none}
+.pv tr.gt td.seg{color:#fff}
+.pv tr.sub:hover td{background:rgba(143,163,191,.10)}
+.pv td.pc{font-family:var(--mono);font-size:9px;font-weight:600;position:relative;
+  padding-right:6px;padding-bottom:4px;min-width:66px}
+.mini{position:absolute;left:5px;right:6px;bottom:1.5px;height:2.5px;background:#DEE3E9}
+.mini i{position:absolute;left:0;top:0;bottom:0;background:var(--book)}
+.mini u{position:absolute;top:-1.5px;bottom:-1.5px;width:1.5px;background:var(--l1)}
+.c-lo{color:var(--neg)} .c-mid{color:var(--warnInk)} .c-hi{color:var(--pos)}
+.pv tr.gt .c-lo,.pv tr.gt .c-mid,.pv tr.gt .c-hi{color:#fff}
+.pv tr.gt .mini{background:rgba(255,255,255,.32)} .pv tr.gt .mini i{background:#fff}
+.pv tr.gt .mini u{background:#fff}
+.pv tr.xrow td{border-bottom:none;font-style:italic}
+
+/* ---------- matrix ---------- */
+.mx{width:100%;border-collapse:collapse;flex:1}
+.mx th{font-family:var(--mono);font-size:7.8px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;padding:2px 3px;text-align:center}
+.mx th.rl{text-align:left}
+.mx td{padding:1.5px;text-align:center}
+.mx td.rl{font-family:var(--disp);font-size:10.5px;color:var(--l1);text-align:left;
+  letter-spacing:.05em;text-transform:uppercase;padding-right:5px;white-space:nowrap}
+.cell{padding:4px 3px;border:1px solid rgba(0,0,0,.05);position:relative;cursor:default}
+.cell span{display:block;font-family:var(--disp);font-size:13px;font-weight:900;line-height:1;
+  font-variant-numeric:tabular-nums}
+.cell small{display:block;font-family:var(--mono);font-size:7.4px;margin-top:2px;opacity:.82;
+  letter-spacing:.02em}
+.cell em{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--target)}
+
+/* ---------- sales people ---------- */
+.people{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  --pbar:11px;--pfs:10px;--pnum:11px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 140px 46px 34px 12px;align-items:center;
+  gap:6px;padding:0;cursor:default;line-height:1}
+.prow:hover{background:rgba(143,163,191,.13)}
+.pn{font-size:var(--pfs);color:var(--l2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.05}
+.pbar{position:relative;height:var(--pbar);background:#E3E8ED}
+.pbar i{position:absolute;left:0;top:0;bottom:0;background:var(--book);border-radius:0 2px 2px 0}
+.pbar u{position:absolute;top:-1.5px;bottom:-1.5px;width:2px;background:var(--target)}
+.pval{font-family:var(--disp);font-size:var(--pnum);font-weight:700;color:var(--l1);text-align:right;
+  font-variant-numeric:tabular-nums;line-height:1}
+.ppct{font-family:var(--mono);font-size:calc(var(--pfs) - .6px);text-align:right;font-weight:600;
+  line-height:1}
+.ppct.pos{color:var(--pos)} .ppct.neg{color:var(--neg)} .ppct.nil{color:var(--faint)}
+.parr{width:11px;height:var(--parr,11px);display:flex;align-items:center}
+.parr svg{width:11px;height:var(--parr,11px)}
+.sptgl{display:flex;gap:0;border:1px solid var(--line)}
+.sptgl button{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;
+  padding:2.5px 7px;border:none;background:var(--bg);color:var(--l2);cursor:pointer}
+.sptgl button.on{background:var(--accFill);color:#fff;font-weight:600}
+
+/* ---------- comments ---------- */
+.comments{flex:1;display:flex;flex-direction:column;justify-content:space-between;
+  gap:5px;min-height:0;overflow:hidden}
+.cmt{display:flex;gap:7px;align-items:flex-start}
+.ico{width:15px;height:15px;flex:0 0 15px;margin-top:1px}
+.ico svg{width:100%;height:100%;fill:none;stroke:var(--accInk);stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.ctxt{min-width:0;flex:1}
+.key{font-family:var(--disp);font-size:10.6px;font-weight:700;color:var(--l1);letter-spacing:.045em;
+  text-transform:uppercase;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:7.2px;letter-spacing:.11em;padding:1.5px 5px;
+  background:var(--pos);color:#fff;font-weight:500;border-radius:2px}
+.tag.g{background:transparent;border:1px solid var(--neg);color:var(--neg)}
+.cbody{font-size:9.4px;line-height:1.42;color:var(--l2);margin-top:2px}
+.cbody b{color:var(--l1);font-weight:600}
+
+/* ---------- tooltip ---------- */
+#tip{position:fixed;z-index:50;pointer-events:none;opacity:0;transition:opacity .09s;
+  background:#132539;color:#fff;padding:6px 9px;max-width:280px;
+  font-family:var(--mono);font-size:9.4px;line-height:1.5;letter-spacing:.02em;
+  box-shadow:0 3px 12px rgba(19,37,57,.28)}
+#tip b{font-family:var(--disp);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  display:block;margin-bottom:3px;color:#fff}
+#tip .tr{display:flex;justify-content:space-between;gap:14px}
+#tip .tr span:last-child{font-weight:600}
+#tip .tn{color:#B9C6D6;font-size:8.4px;margin-top:4px;white-space:normal}
+
+footer{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:5px;
+  font-family:var(--mono);font-size:7.8px;color:var(--faint);letter-spacing:.09em;
+  text-transform:uppercase;min-width:0;white-space:nowrap}
+footer span{overflow:hidden;text-overflow:ellipsis}
+footer span:last-child{margin-left:auto}
+</style>
+</head>
+<body>
+<div id="scaler"><div class="sheet">
+
+  <header>
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <h1 id="title">Order Booking Performance</h1>
+        <div class="sub" id="subline">Loading…</div>
+      </div>
+    </div>
+    <div class="stamp">
+      <div class="big" id="stampBig">—</div>
+      <div class="sm" id="stampSm">—</div>
+    </div>
+  </header>
+
+  <div class="ob-status" id="obStatus">
+    <span class="ob-dot"></span><span class="ob-msg">Checking the data service…</span>
+    <span class="ob-detail"></span>
+  </div>
+  <div class="ob-warn" id="obWarn" style="display:none">
+    <span class="ob-dot"></span><span class="ob-msg"></span><span class="ob-detail"></span>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="money" id="obMoney" style="display:none"></div>
+
+  <div class="main">
+
+    <div class="card a-pivot">
+      <div class="ch">
+        <div class="ct">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          Booking vs Target
+        </div>
+        <div class="cs" id="pvHead"></div>
+      </div>
+      <div style="flex:1;overflow:auto;min-height:0"><table class="pv" id="pivot"></table></div>
+    </div>
+
+    <div class="card a-trend">
+      <div class="ch">
+        <div class="ct">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>
+          The Year So Far
+        </div>
+        <div class="cs" id="trHead"></div>
+      </div>
+      <div style="flex:1;min-height:0" id="trendBox"></div>
+      <div class="legend">
+        <span><i style="background:#2F5D96"></i>Booking</span>
+        <span><i class="ln"></i>Monthly target</span>
+        <span><i style="background:rgba(47,93,150,.16)"></i>Not yet booked</span>
+      </div>
+    </div>
+
+    <div class="card a-heat">
+      <div class="ch">
+        <div class="ct">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Region × Segment
+        </div>
+        <div class="cs" id="mxHead"></div>
+      </div>
+      <div style="flex:1;overflow:auto;min-height:0"><table class="mx" id="matrix"></table></div>
+      <div class="legend">
+        <span><i style="background:#2F5D96"></i>≥120%</span>
+        <span><i style="background:rgba(47,93,150,.34)"></i>100–120%</span>
+        <span><i style="background:rgba(194,118,15,.30)"></i>70–99%</span>
+        <span><i style="background:rgba(194,118,15,.62);border-left:3px solid #132539"></i>&lt;70% shortfall</span>
+      </div>
+    </div>
+
+    <div class="card a-people">
+      <div class="ch">
+        <div class="ct">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          Sales Person
+        </div>
+        <div class="sptgl" id="spTgl">
+          <button data-v="MTD" class="on">MTD</button><button data-v="YTD">YTD</button>
+        </div>
+        <div class="cs" id="spNote"></div>
+      </div>
+      <div class="people" id="people"></div>
+      <div class="legend">
+        <span><i style="background:#2F5D96"></i>Booking</span>
+        <span><i class="ln"></i>Target</span>
+        <span style="color:#1A7A3E">▲ at or above</span>
+        <span style="color:#B4443F">▼ below</span>
+        <span>— no personal target</span>
+      </div>
+    </div>
+
+    <div class="card a-notes">
+      <div class="ch">
+        <div class="ct">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Comments
+        </div>
+        <div class="cs">Written from the data on screen</div>
+      </div>
+      <div class="comments" id="comments"></div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span id="fnote">Source: YTD Merg register · Targets: Monthly Booking Target (2), rolled up by region × segment × month</span>
+    <span id="dataStamp"></span>
+    <span>Booking = order value at release · ₹ Crore</span>
+  </footer>
+
+</div></div>
+<div id="tip"></div>
+
+<script src="dashboard-config.js"></script>
+<script src="validator.js"></script>
+<script src="data.js"></script>
+<script>
+/* ---------------------------------------------------------------------------
+   Data layer. Order of preference:
+     1. the live service named in dashboard-config.js
+     2. data.js, the last exported snapshot - used only when the service is
+        unreachable, and always labelled on screen as a snapshot with its age
+     3. nothing: the dashboard refuses to render rather than show a blank or a
+        zero that could be mistaken for a real number
+   A payload is rendered only after it passes the same schema check the pipeline
+   applies on the way out.
+--------------------------------------------------------------------------- */
+var DATA = null;
+
+var OB = (function () {
+  var CFG = window.OB_CONFIG || {};
+  var ENDPOINT = CFG.endpoint || '';
+  var WARN_H = CFG.warnAfterHours || 6;
+  var STALE_H = CFG.staleAfterHours || 30;
+
+  function fmt(iso) {
+    if (!iso) return 'unknown';
+    var d = new Date(iso);
+    return isNaN(d) ? String(iso) : d.toLocaleString();
+  }
+  function ageHours(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? Infinity : (Date.now() - d.getTime()) / 36e5;
+  }
+  function esc(s) {
+    return String(s).replace(/[<&]/g, function (c) { return c === '<' ? '&lt;' : '&amp;'; });
+  }
+
+  var validate = window.OB_VALIDATE.validate;
+  var softWarnings = window.OB_VALIDATE.softWarnings;
+
+  function showWarnings(p) {
+    var el = document.getElementById('obWarn');
+    if (!el) return;
+    var ws = softWarnings(p);
+    if (!ws.length) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = '<span class="ob-dot"></span><span class="ob-msg">' + ws.length +
+      (ws.length === 1 ? ' note' : ' notes') + '</span><span class="ob-detail">' +
+      ws.map(esc).join('  ·  ') + '</span>';
+    el.title = ws.join('\n');
+  }
+
+  function setStatus(cls, msg, detail) {
+    var el = document.getElementById('obStatus');
+    if (!el) return;
+    el.className = 'ob-status ' + cls;
+    el.querySelector('.ob-msg').textContent = msg;
+    el.querySelector('.ob-detail').textContent = detail || '';
+    el.title = msg + (detail ? ' · ' + detail : '');
+    var f = document.getElementById('dataStamp');
+    if (f) f.textContent = msg;
+  }
+
+  function fail(reason, errs) {
+    var host = document.getElementById('scaler');
+    if (host) { host.style.transform = 'none'; host.innerHTML = ''; }
+    document.body.style.height = 'auto';
+    var box = document.createElement('div');
+    box.className = 'ob-fail';
+    box.innerHTML =
+      '<h2>No trustworthy data to show</h2>' +
+      '<p>' + esc(reason) + ' The dashboard will not display figures it cannot verify, so ' +
+      'nothing is rendered rather than showing numbers that might be stale or wrong.</p>' +
+      '<ul>' +
+        '<li>Start the data service: run <code>run_service.cmd</code> in the pipeline folder.</li>' +
+        '<li>Or refresh the offline snapshot: run <code>refresh.cmd</code>, then reload this page.</li>' +
+        '<li>Check that <code>config.json</code> still points at the current workbook.</li>' +
+        '<li>Service health check: <code>' +
+          esc(ENDPOINT.replace(/\/data\.json$/, '/health') || 'not configured') + '</code></li>' +
+      '</ul>' +
+      (errs && errs.length ? '<div class="ob-errs">' + errs.map(esc).join('\n') + '</div>' : '');
+    document.body.appendChild(box);
+  }
+
+  /* If the pipeline had to reach the workbook through a local working copy
+     rather than directly, say so. A fallback nobody is told about is how a
+     pipeline starts lying. */
+  function via(p) {
+    return (p.sourceVia && p.sourceVia !== 'direct') ? ' · via ' + p.sourceVia : '';
+  }
+
+  function classify(p) {
+    var age = ageHours(p.generatedAt);
+    if (age > STALE_H) return 'ob-stale';
+    if (age > WARN_H) return 'ob-warn-age';
+    return 'ob-live';
+  }
+
+  function boot(startRender) {
+    var snapshot = window.OB_SNAPSHOT || null;
+
+    function useSnapshot(why) {
+      if (!snapshot) { fail(why + ' There is no offline snapshot either.', [why]); return; }
+      var errs = validate(snapshot);
+      if (errs.length) { fail(why + ' The offline snapshot is also unusable.', errs); return; }
+      DATA = snapshot;
+      startRender();
+      showWarnings(snapshot);
+      var age = ageHours(snapshot.generatedAt);
+      setStatus(age > STALE_H ? 'ob-stale' : 'ob-warn-age',
+        age > STALE_H ? 'SNAPSHOT — STALE, not live' : 'SNAPSHOT — not live',
+        'built ' + fmt(snapshot.generatedAt) + ' · workbook saved ' +
+        fmt(snapshot.sourceModified) + via(snapshot) + ' · ' + why);
+    }
+
+    if (!ENDPOINT) { useSnapshot('No data service is configured.'); return; }
+
+    var done = false;
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+
+    fetch(ENDPOINT, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) {
+        if (!r.ok) throw new Error('service returned HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (fresh) {
+        clearTimeout(timer); done = true;
+        var errs = validate(fresh);
+        if (errs.length) { useSnapshot('The data service replied, but the payload failed validation.'); return; }
+        DATA = fresh;
+        startRender();
+        showWarnings(fresh);
+        setStatus(classify(fresh), 'LIVE — from ' + fresh.sourceFile,
+          'refreshed ' + fmt(fresh.generatedAt) + ' · workbook saved ' +
+          fmt(fresh.sourceModified) + via(fresh));
+      })
+      .catch(function (e) {
+        clearTimeout(timer);
+        if (done) return;
+        useSnapshot('The data service at ' + ENDPOINT + ' could not be reached (' +
+                    (e && e.message || e) + ').');
+      });
+  }
+
+  return { boot: boot, validate: validate, fmt: fmt, setStatus: setStatus, esc: esc };
+})();
+</script>
+<script>
+let MN, REGS, SEGS, A, T, C, ST, SC, PEOPLE, PA, PT, PTM, PC, LASTM, F,
+    EXCL, EXCL_M, EXCL_TOTAL, OPEN_ST, INV_ST, SOIP, INVAMT, ALLST;
+const RSHORT = {'NORTH':'North','SOUTH/CENTRAL':'South/Cen','EAST/WEST':'East/West'};
+const SNAME  = {'PH':'PH','RP':'RP','CP':'CP','RT':'Retail'};
+
+function stBucket(m, r, s, labels){
+  let t = 0; const base = m+'|'+r+'|'+s+'|';
+  for (let i=0; i<labels.length; i++) t += ST[base+labels[i]] || 0;
+  return t;
+}
+/* Booking whose status flag is neither open nor invoiced (Short close, Canceled).
+   It is small, it is real, and folding it into either bucket would misstate the
+   order book, so it gets counted on its own and named in the KPI. */
+function stOther(months, regs, segs){
+  let t = 0;
+  const known = {};
+  OPEN_ST.forEach(s=>known[s]=1); INV_ST.forEach(s=>known[s]=1);
+  for (const k in ST){
+    const p = k.split('|'), flag = p.slice(3).join('|');
+    if (known[flag]) continue;
+    if (months.indexOf(+p[0])<0 || regs.indexOf(p[1])<0 || segs.indexOf(p[2])<0) continue;
+    t += ST[k];
+  }
+  return t;
+}
+
+function bindData(){
+  MN = DATA.months; REGS = DATA.regions; SEGS = DATA.segments;
+  A = DATA.actual; T = DATA.target; C = DATA.count; ST = DATA.status;
+  SC = DATA.statusCount || {}; ALLST = DATA.allStatuses || {};
+  PEOPLE = DATA.people; PA = DATA.pactual; PT = DATA.ptarget; PC = DATA.pcount;
+  /* ptargetByMonth is the quota as the register actually states it, month by
+     month. ptarget is the flat monthly average kept for older payloads; using
+     it across a range assumes every month carries the same quota, which is only
+     true while the plan is flat. Prefer the real thing when it is there. */
+  PTM = DATA.ptargetByMonth || null;
+  EXCL = DATA.excluded || {}; EXCL_TOTAL = DATA.excludedTotal || 0;
+  EXCL_M = (DATA.excludedByMonth && typeof DATA.excludedByMonth === 'object')
+             ? DATA.excludedByMonth : null;
+  SOIP = DATA.soip || null; INVAMT = DATA.invoicedAmount || null;
+  OPEN_ST = DATA.openStatuses || ['Open order'];
+  INV_ST  = DATA.invoicedStatuses || ['Invoiced'];
+  LASTM = DATA.latestMonth || MN.length;
+  F = {month:LASTM, regions:new Set(REGS), segments:new Set(SEGS), spView:'MTD'};
+  document.getElementById('title').textContent =
+    (window.OB_CONFIG && window.OB_CONFIG.title) || 'Order Booking Performance';
+}
+
+const num = (v,d=1)=> (v===0?(0).toFixed(d):v.toFixed(d));
+const pct = v => (isFinite(v) ? (v*100).toFixed(0)+'%' : '—');
+
+function sum(map, months, regs, segs){
+  let t=0;
+  for(const m of months) for(const r of regs) for(const s of segs){
+    const v = map[m+'|'+r+'|'+s]; if(v) t+=v;
+  } return t;
+}
+const R = ()=>[...F.regions], S = ()=>[...F.segments];
+const mtdM = ()=>[F.month], ytdM = ()=>Array.from({length:F.month},(_,i)=>i+1);
+
+/* ---------------- tooltip ---------------- */
+const TIP = document.getElementById('tip');
+function tipShow(html, ev){
+  TIP.innerHTML = html; TIP.style.opacity = 1;
+  tipMove(ev);
+}
+function tipMove(ev){
+  const pad = 14, w = TIP.offsetWidth, h = TIP.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > window.innerWidth - 6) x = ev.clientX - w - pad;
+  if (y + h > window.innerHeight - 6) y = ev.clientY - h - pad;
+  TIP.style.left = Math.max(4,x)+'px'; TIP.style.top = Math.max(4,y)+'px';
+}
+function tipHide(){ TIP.style.opacity = 0; }
+function bindTip(el, html){
+  el.addEventListener('mouseenter', e=>tipShow(html, e));
+  el.addEventListener('mousemove', tipMove);
+  el.addEventListener('mouseleave', tipHide);
+}
+const trow = (k,v)=>'<div class="tr"><span>'+k+'</span><span>'+v+'</span></div>';
+
+/* ---------------- filters ---------------- */
+function icon(p){return '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7A8D" stroke-width="2" stroke-linecap="round">'+p+'</svg>';}
+const IC = {
+  cal:'<rect x="3" y="4" width="18" height="18" rx="1"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  map:'<path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4z"/><path d="M8 2v16M16 6v16"/>',
+  tag:'<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7" cy="7" r="1.2"/>',
+  yr:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+};
+function buildFilters(){
+  const el = document.getElementById('filters');
+  const booked = m => sum(A,[m],REGS,SEGS)!==0 || sum(T,[m],REGS,SEGS)!==0;
+  let h = '';
+  h += '<div class="fgroup"><span class="flabel">'+icon(IC.yr)+'Year</span>'
+     + '<button class="chip on" disabled style="opacity:.9">'+(DATA.fiscalYear||'')+'</button></div><div class="sep"></div>';
+  h += '<div class="fgroup"><span class="flabel">'+icon(IC.cal)+'Month (MTD)</span>'
+     + MN.map((m,i)=>'<button class="chip'+(F.month===i+1?' on':'')+'" data-t="m" data-v="'+(i+1)+'"'
+       + (booked(i+1)?'':' style="opacity:.42"')+'>'+m+'</button>').join('')
+     + '</div><div class="sep"></div>';
+  h += '<div class="fgroup"><span class="flabel">'+icon(IC.map)+'Region</span>'
+     + '<button class="chip'+(F.regions.size===REGS.length?' on':'')+'" data-t="r" data-v="ALL">All</button>'
+     + REGS.map(r=>'<button class="chip'+(F.regions.size<REGS.length&&F.regions.has(r)?' on':'')+'" data-t="r" data-v="'+r+'">'+(RSHORT[r]||r)+'</button>').join('')
+     + '</div><div class="sep"></div>';
+  h += '<div class="fgroup"><span class="flabel">'+icon(IC.tag)+'Segment</span>'
+     + '<button class="chip'+(F.segments.size===SEGS.length?' on':'')+'" data-t="s" data-v="ALL">All</button>'
+     + SEGS.map(s=>'<button class="chip'+(F.segments.size<SEGS.length&&F.segments.has(s)?' on':'')+'" data-t="s" data-v="'+s+'">'+(SNAME[s]||s)+'</button>').join('')
+     + '</div>';
+  h += '<button class="reset" id="reset">↺ Reset filters</button>';
+  el.innerHTML = h;
+  el.querySelectorAll('.chip[data-t]').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.t, v=b.dataset.v;
+    if(t==='m') F.month=+v;
+    if(t==='r'){ if(v==='ALL') F.regions=new Set(REGS);
+      else { if(F.regions.size===REGS.length) F.regions=new Set([v]);
+        else if(F.regions.has(v)){ F.regions.delete(v); if(!F.regions.size) F.regions=new Set(REGS); }
+        else F.regions.add(v); } }
+    if(t==='s'){ if(v==='ALL') F.segments=new Set(SEGS);
+      else { if(F.segments.size===SEGS.length) F.segments=new Set([v]);
+        else if(F.segments.has(v)){ F.segments.delete(v); if(!F.segments.size) F.segments=new Set(SEGS); }
+        else F.segments.add(v); } }
+    render();
+  });
+  document.getElementById('reset').onclick=()=>{
+    F={month:LASTM,regions:new Set(REGS),segments:new Set(SEGS),spView:F.spView}; render();};
+}
+
+/* ---------------- KPI ---------------- */
+function kpiIcon(p){return '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#61779A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';}
+function buildKPIs(){
+  const regs=R(), segs=S();
+  const ma=sum(A,mtdM(),regs,segs), mt=sum(T,mtdM(),regs,segs);
+  const ya=sum(A,ytdM(),regs,segs), yt=sum(T,ytdM(),regs,segs);
+  const prev = F.month>1 ? sum(A,[F.month-1],regs,segs) : 0;
+  const fy = sum(T,Array.from({length:12},(_,i)=>i+1),regs,segs);
+  let open=0, inv=0, orders=0;
+  for(const m of ytdM()) for(const r of regs) for(const s of segs){
+    open += stBucket(m,r,s,OPEN_ST); inv += stBucket(m,r,s,INV_ST);
+    orders += C[m+'|'+r+'|'+s]||0;
+  }
+  const other = stOther(ytdM(), regs, segs);
+
+  const card=(label,ic,val,unit,footHtml,fill,tick,tip)=>`
+    <div class="kpi" data-tip="${tip?OB.esc(tip).replace(/"/g,'&quot;'):''}">
+      <div class="kh">${kpiIcon(ic)}${label}</div>
+      <div class="kv">${val}<small>${unit}</small></div>
+      <div class="kf">${footHtml}</div>
+      ${fill!==null?`<div class="track"><i style="width:${Math.max(0,Math.min(fill*100,100))}%"></i><u style="left:${tick}%"></u></div>`:''}
+    </div>`;
+
+  const gap=(a,t)=>{const d=a-t; return `<span class="pill ${d>=0?'up':'dn'}">${d>=0?'+':'−'}${Math.abs(d).toFixed(1)}</span><span>vs target ${t.toFixed(1)}</span>`;};
+  const momTxt = prev
+    ? `<span class="pill ${ma>=prev?'up':'dn'}">${ma>=prev?'+':'−'}${Math.abs((ma-prev)/prev*100).toFixed(0)}%</span><span>on ${MN[F.month-2]} ${prev.toFixed(1)}</span>`
+    : `<span class="pill nt">first month</span>`;
+
+  document.getElementById('kpis').innerHTML =
+    card(MN[F.month-1]+' MTD Booking','<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',
+      num(ma),'Cr',gap(ma,mt),mt?ma/mt:0,100,
+      'Order value released in '+MN[F.month-1]+', from the register’s booking-month column.')
+  + card('MTD Completion','<circle cx="12" cy="12" r="9"/><path d="M12 12l4-2"/><path d="M12 12V7"/>',
+      pct(mt?ma/mt:NaN),'',momTxt,mt?ma/mt:0,100,
+      MN[F.month-1]+' against its own target. The pill compares it with the month before, '
+      + 'which is a different question and is labelled as one.')
+  + card('YTD Booking','<path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/>',
+      num(ya),'Cr',gap(ya,yt),yt?ya/yt:0,100,
+      'Jan–'+MN[F.month-1]+' booking for the current filter.')
+  + card('YTD Completion','<path d="M20 6L9 17l-5-5"/>',pct(yt?ya/yt:NaN),'',
+      `<span class="pill ${ya>=yt?'up':'dn'}">${ya>=yt?'AHEAD':'BEHIND'}</span><span>${fy?(ya/fy*100).toFixed(0):'—'}% of full year ${fy.toFixed(0)} Cr</span>`,
+      yt?ya/yt:0,100,
+      'Booking against the target for the months elapsed — not against the whole year.')
+  + card('Order Book · Still Open','<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+      num(open),'Cr',
+      `<span class="pill nt">${orders} orders</span><span>${inv.toFixed(1)} Cr invoiced${Math.abs(other)>0.005?' · '+other.toFixed(1)+' other':''}</span>`,
+      (open+inv)?open/(open+inv):0,null,
+      'Booked value grouped by the register’s status flag. This is order value, not money.'
+      + (Math.abs(other)>0.005 ? '\n\n'+other.toFixed(2)+' Cr carries a status that is neither open nor invoiced (short close, cancelled) and is shown separately rather than folded into either.' : ''));
+
+  document.querySelectorAll('#kpis .kpi[data-tip]').forEach(el=>{
+    const t = el.getAttribute('data-tip');
+    if(t) bindTip(el, '<b>'+el.querySelector('.kh').textContent.trim()+'</b>'+
+      '<div class="tn">'+t.replace(/\n/g,'<br>')+'</div>');
+  });
+
+  buildMoneyBand(open, inv);
+}
+
+/* The two order-book figures above are BOOKED VALUE grouped by the status flag,
+   which is not the same thing as money invoiced. This band states both side by
+   side, filtered the same way, so neither label can be read as the other. */
+function buildMoneyBand(bookedOpen, bookedInvoiced){
+  const el = document.getElementById('obMoney');
+  if(!el) return;
+  if(!SOIP || !INVAMT){ el.style.display='none'; return; }
+  const months = ytdM(), regs = R(), segs = S();
+  const notInv = sum(SOIP, months, regs, segs), invAmt = sum(INVAMT, months, regs, segs);
+  el.style.display = 'flex';
+  el.innerHTML =
+    '<span class="mb-h">Booked value</span>' +
+    '<span class="mb-i" title="Order value summed over rows whose status flag is open. This is order value, not money."><b>' +
+      bookedOpen.toFixed(2) + '</b>open status</span>' +
+    '<span class="mb-i" title="Order value summed over rows whose status flag is invoiced. This is order value, not money."><b>' +
+      bookedInvoiced.toFixed(2) + '</b>invoiced status</span>' +
+    '<span class="mb-sep"></span>' +
+    '<span class="mb-h">Money</span>' +
+    '<span class="mb-i" title="Column O - the not-invoiced amount captured when each row entered the register."><b>' +
+      notInv.toFixed(2) + '</b>not invoiced</span>' +
+    '<span class="mb-i" title="Column P - invoiced amount accumulated across extract cycles."><b>' +
+      invAmt.toFixed(2) + '</b>invoiced</span>' +
+    '<span class="mb-n">₹ Cr · booked value and money are different measures</span>';
+}
+
+/* ---------------- the year so far ---------------- */
+function buildTrend(){
+  const regs=R(), segs=S();
+  const box = document.getElementById('trendBox');
+  const W = box.clientWidth || 490, H = Math.max(box.clientHeight || 250, 120);
+  const padL = 30, padR = 8, padT = 16, padB = 22;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = 12, gap = 5, bw = Math.max(6, (iw - gap*(n-1)) / n);
+
+  const act = [], tgt = [];
+  for(let m=1;m<=12;m++){ act.push(sum(A,[m],regs,segs)); tgt.push(sum(T,[m],regs,segs)); }
+  const top = Math.max(Math.max(...act), Math.max(...tgt), 0.1) * 1.18;
+  const y = v => padT + ih - (v/top)*ih;
+  const x = i => padL + i*(bw+gap);
+
+  let g = '';
+  /* recessive gridlines only - four of them, labelled */
+  const step = niceStep(top/4);
+  for(let v=0; v<=top; v+=step){
+    g += `<line x1="${padL}" x2="${W-padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#E4E9EF" stroke-width="1"/>`
+       + `<text x="${padL-5}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" style="font-size:8px;fill:#8C99A8;font-family:var(--mono)">${v.toFixed(0)}</text>`;
+  }
+
+  const maxA = Math.max(...act);
+  for(let i=0;i<12;i++){
+    const a = act[i], t = tgt[i], future = a === 0 && i+1 > LASTM;
+    const h = Math.max(a>0 ? y(0)-y(a) : 0, 0);
+    const fill = future ? 'var(--bookSoft)' : (i+1===F.month ? '#24507F' : 'var(--book)');
+    if(a>0){
+      g += `<rect x="${x(i).toFixed(1)}" y="${y(a).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${fill}"/>`;
+    } else if (t>0){
+      g += `<rect x="${x(i).toFixed(1)}" y="${y(t).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0)-y(t)).toFixed(1)}" rx="3" fill="var(--bookSoft)"/>`;
+    }
+    if(t>0){
+      g += `<line x1="${(x(i)-1).toFixed(1)}" x2="${(x(i)+bw+1).toFixed(1)}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="var(--target)" stroke-width="2" stroke-linecap="round"/>`;
+    }
+    /* label the months that carry the story: the current one and the best one */
+    if(a>0 && (i+1===F.month || a===maxA)){
+      g += `<text x="${(x(i)+bw/2).toFixed(1)}" y="${(y(a)-4).toFixed(1)}" text-anchor="middle" style="font-family:var(--disp);font-size:10px;font-weight:700;fill:#132539">${a.toFixed(1)}</text>`;
+    }
+    g += `<text x="${(x(i)+bw/2).toFixed(1)}" y="${(H-8).toFixed(1)}" text-anchor="middle" style="font-size:8.2px;font-family:var(--mono);letter-spacing:.04em;fill:${i+1===F.month?'#132539':'#8C99A8'};font-weight:${i+1===F.month?600:400}">${MN[i]}</text>`;
+    g += `<rect class="tz" data-m="${i+1}" x="${(x(i)-gap/2).toFixed(1)}" y="${padT}" width="${(bw+gap).toFixed(1)}" height="${ih.toFixed(1)}" fill="transparent"/>`;
+  }
+  g += `<line x1="${padL}" x2="${W-padR}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#C3CBD4" stroke-width="1"/>`;
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+    aria-label="Monthly booking against monthly target, ${MN[0]} to ${MN[11]}">${g}</svg>`;
+
+  box.querySelectorAll('.tz').forEach(z=>{
+    const i = +z.dataset.m - 1, a = act[i], t = tgt[i];
+    const done = i+1 <= LASTM;
+    bindTip(z, '<b>'+MN[i]+' '+(DATA.fiscalYear||'')+'</b>'
+      + trow('Booking', done ? a.toFixed(2)+' Cr' : 'not booked yet')
+      + trow('Target', t.toFixed(2)+' Cr')
+      + (done && t ? trow('Completion', pct(a/t)) : '')
+      + (done && t ? trow(a>=t?'Ahead by':'Short by', Math.abs(a-t).toFixed(2)+' Cr') : '')
+      + '<div class="tn">'+(done ? 'Click the month chip above to make this the MTD month.'
+                                 : 'Future month — the pale bar is its target, not booking.')+'</div>');
+    z.style.cursor = done ? 'pointer' : 'default';
+    if(done) z.addEventListener('click', ()=>{ F.month = i+1; tipHide(); render(); });
+  });
+
+  const ya = sum(A,ytdM(),regs,segs), run = ya/F.month;
+  document.getElementById('trHead').textContent =
+    'Monthly · run rate ' + run.toFixed(1) + ' Cr · ₹ Cr';
+}
+function niceStep(raw){
+  const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw,1e-6))));
+  const n = raw/p;
+  return (n<1.5?1:n<3?2:n<7?5:10)*p;
+}
+
+/* ---------------- sales person ---------------- */
+const SHORT = n => { const p = String(n).split(',');
+  return (p.length>1 ? p[1].trim()+' '+p[0].trim() : n).replace(/\s+/g,' ').trim(); };
+
+function personRows(){
+  const months = F.spView==='MTD' ? mtdM() : ytdM();
+  const regs = R(), segs = S(), nm = months.length;
+  const agg = {};
+  const grab = p => (agg[p] = agg[p] || {a:0,t:0,n:0});
+  for(const r of regs) for(const s of segs){
+    for(const p of PEOPLE){
+      if(PTM){
+        for(const m of months){
+          const tk = PTM[m+'|'+r+'|'+s+'|'+p];
+          if(tk!==undefined) grab(p).t += tk;
+        }
+      } else {
+        const tk = PT[r+'|'+s+'|'+p];
+        if(tk!==undefined) grab(p).t += tk*nm;
+      }
+      for(const m of months){
+        const k = m+'|'+r+'|'+s+'|'+p;
+        const v = PA[k];
+        if(v!==undefined){ const o=grab(p); o.a += v; o.n += PC[k]||0; }
+      }
+    }
+  }
+  return Object.keys(agg).map(p=>{
+    const o = agg[p];
+    return {p, a:o.a, t:o.t, n:o.n, ok:o.t>0 ? o.a>=o.t : o.a>0, pct:o.t>0 ? o.a/o.t : null};
+  }).filter(x=>x.a!==0 || x.t>0).sort((x,y)=>y.a-x.a);
+}
+
+const ARR = ok => ok
+  ? '<svg viewBox="0 0 24 24" fill="none" stroke="#1A7A3E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M5 12l7-7 7 7"/></svg>'
+  : '<svg viewBox="0 0 24 24" fill="none" stroke="#B4443F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15"/><path d="M5 12l7 7 7-7"/></svg>';
+
+function buildPeople(){
+  const rows = personRows();          /* every name, no "+ N others" roll-up */
+  const sc = Math.max(...rows.map(r=>Math.max(r.a, r.t)), 0.1)*1.14;
+  const line = r=>{
+    const w = Math.max(Math.min(r.a/sc,1)*100, 0);
+    const col = r.pct===null ? 'var(--accFill)' : (r.ok ? 'var(--book)' : 'var(--target)');
+    const cls = r.ok ? 'pos' : 'neg';
+    return `<div class="prow" data-p="${OB.esc(r.p).replace(/"/g,'&quot;')}">
+      <span class="pn">${OB.esc(SHORT(r.p))}</span>
+      <span class="pbar"><i style="width:${w}%;background:${col}"></i>${r.t>0?`<u style="left:${Math.min(r.t/sc,1)*100}%"></u>`:''}</span>
+      <span class="pval">${r.a.toFixed(2)}</span>
+      <span class="ppct ${r.pct===null?'nil':cls}">${r.pct===null?'—':(r.pct*100).toFixed(0)+'%'}</span>
+      <span class="parr">${r.pct===null?'':ARR(r.ok)}</span></div>`;
+  };
+  const el = document.getElementById('people');
+  el.innerHTML = rows.map(line).join('');
+  fitPeople(el, rows.length);
+  const period = F.spView==='MTD' ? MN[F.month-1] : 'Jan–'+MN[F.month-1];
+  document.getElementById('spNote').textContent =
+    period + ' · ' + rows.length + ' people · ₹ Cr';
+  const byName = {}; rows.forEach(r=>byName[r.p]=r);
+  el.querySelectorAll('.prow').forEach(node=>{
+    const r = byName[node.dataset.p]; if(!r) return;
+    bindTip(node, '<b>'+OB.esc(r.p)+'</b>'
+      + trow('Booking ('+period+')', r.a.toFixed(2)+' Cr')
+      + trow('Target', r.t>0 ? r.t.toFixed(2)+' Cr' : 'none on record')
+      + trow('Orders', String(r.n))
+      + (r.t>0 ? trow(r.ok?'Ahead by':'Short by', Math.abs(r.a-r.t).toFixed(2)+' Cr') : '')
+      + (r.t>0 ? '' : '<div class="tn">This name books against no row in the target register, so it has no personal target. The booking still counts in every regional figure. See reconciliation.txt.</div>'));
+  });
+  document.querySelectorAll('#spTgl button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.v===F.spView);
+    b.onclick = ()=>{ F.spView = b.dataset.v; buildPeople(); };
+  });
+}
+
+/* Scale row density to the card so every name stays on screen and legible,
+   whatever the filters leave in view. */
+function fitPeople(el, n){
+  const h = el.clientHeight || 600;
+  const per = h / Math.max(n, 1);
+  const sparse = per > 34;
+  el.style.justifyContent = sparse ? 'flex-start' : 'space-evenly';
+  el.style.gap = sparse ? '18px' : '0';
+  el.style.paddingTop = sparse ? '5px' : '1px';
+  let bar = Math.max(6, Math.min(15, per - 5.5));
+  let fs  = Math.max(7.6, Math.min(11.5, per - 7));
+  let nsz = Math.max(8.4, Math.min(13, per - 5));
+  const apply = ()=>{
+    el.style.setProperty('--pbar', bar.toFixed(1)+'px');
+    el.style.setProperty('--pfs',  fs.toFixed(1)+'px');
+    el.style.setProperty('--pnum', nsz.toFixed(1)+'px');
+    el.style.setProperty('--parr', Math.min(11, nsz).toFixed(1)+'px');
+  };
+  apply();
+  /* the type sizes above are an estimate; this is the measurement. Without it a
+     long list quietly loses its last few names off the bottom of the card. */
+  let guard = 0;
+  while(el.scrollHeight > el.clientHeight && guard++ < 16 && fs > 6.4){
+    bar = Math.max(5, bar - 0.4); fs -= 0.3; nsz = Math.max(7.2, nsz - 0.35);
+    apply();
+  }
+}
+
+/* ---------------- matrix ----------------
+   Diverging about 100% of target: amber below, blue above, near-neutral at the
+   line itself. The percentage is printed in every cell, so the reading never
+   depends on telling two colours apart. */
+function heat(p, has){
+  if(!has) return {bg:'transparent',fg:'rgba(85,101,121,.72)',sh:false};
+  if(p>=1.2) return {bg:'#2F5D96',fg:'#FFFFFF',sh:false};
+  if(p>=1.0) return {bg:'rgba(47,93,150,'+(0.14+(p-1)*1.0).toFixed(2)+')',fg:'#132539',sh:false};
+  if(p>=0.7) return {bg:'rgba(194,118,15,'+(0.30-(p-0.7)*0.53).toFixed(2)+')',fg:'#132539',sh:false};
+  return {bg:'rgba(194,118,15,.62)',fg:'#132539',sh:true};
+}
+function buildMatrix(){
+  const regs=R(), segs=S(), months = ytdM();
+  const cells = [];
+  const cell = (a,t,extra,label)=>{
+    const p=t?a/t:0, k=heat(p,t>0);
+    const id = 'hc'+cells.length;
+    cells.push({id,a,t,p,label,has:t>0});
+    return `<td><div class="cell" id="${id}" style="background:${k.bg};color:${k.fg}${extra||''}">${k.sh?'<em></em>':''}
+      <span>${t?(p*100).toFixed(0)+'%':'—'}</span><small>${a.toFixed(1)} / ${t.toFixed(1)}</small></div></td>`;
+  };
+  let h='<thead><tr><th class="rl">Region</th>'+segs.map(s=>`<th>${SNAME[s]||s}</th>`).join('')+'<th style="color:#2F5D96">Total</th></tr></thead><tbody>';
+  regs.forEach(r=>{
+    h+=`<tr><td class="rl">${RSHORT[r]||r}</td>`;
+    segs.forEach(s=>{ h+=cell(sum(A,months,[r],[s]), sum(T,months,[r],[s]), '', (RSHORT[r]||r)+' · '+(SNAME[s]||s)); });
+    h+=cell(sum(A,months,[r],segs), sum(T,months,[r],segs), ';outline:1px solid #D9D9D9', (RSHORT[r]||r)+' · all segments')+'</tr>';
+  });
+  h+='<tr><td class="rl" style="color:#2F5D96">Total</td>';
+  segs.forEach(s=>{ h+=cell(sum(A,months,regs,[s]), sum(T,months,regs,[s]), ';outline:1px solid #D9D9D9', 'All regions · '+(SNAME[s]||s)); });
+  const a=sum(A,months,regs,segs), t=sum(T,months,regs,segs), p=t?a/t:0;
+  const gid='hcTotal';
+  h+=`<td><div class="cell" id="${gid}" style="background:#2F5D96;color:#fff"><span>${(p*100).toFixed(0)}%</span><small>${a.toFixed(1)} / ${t.toFixed(1)}</small></div></td></tr></tbody>`;
+  document.getElementById('matrix').innerHTML=h;
+  cells.forEach(c=>{
+    const el=document.getElementById(c.id); if(!el) return;
+    bindTip(el,'<b>'+c.label+'</b>'
+      + trow('Booking Jan–'+MN[F.month-1], c.a.toFixed(2)+' Cr')
+      + trow('Target', c.has ? c.t.toFixed(2)+' Cr' : 'none set')
+      + (c.has ? trow('Completion', pct(c.p)) : '')
+      + (c.has ? trow(c.a>=c.t?'Ahead by':'Short by', Math.abs(c.a-c.t).toFixed(2)+' Cr')
+               : '<div class="tn">No target is set for this pocket, so it has no completion figure.</div>'));
+  });
+  const gt=document.getElementById(gid);
+  if(gt) bindTip(gt,'<b>All regions · all segments</b>'
+    + trow('Booking Jan–'+MN[F.month-1], a.toFixed(2)+' Cr')
+    + trow('Target', t.toFixed(2)+' Cr') + trow('Completion', pct(p)));
+  document.getElementById('mxHead').textContent='YTD Jan–'+MN[F.month-1]+' completion %';
+}
+
+/* ---------------- pivot ---------------- */
+function buildPivot(){
+  const regs=R(), segs=S(), mm=mtdM(), ym=ytdM();
+  const band=(p,t)=> !t ? '' : (p<0.8 ? 'c-lo' : (p<1.0 ? 'c-mid' : 'c-hi'));
+  const cellPct=(a,t)=>{const p=t?a/t:0;
+    return `<td class="pc ${band(p,t)}">${t?(p*100).toFixed(0)+'%':'—'}<span class="mini"><i style="width:${Math.min(Math.max(p,0),1.6)/1.6*100}%"></i><u style="left:${(1/1.6*100).toFixed(0)}%"></u></span></td>`;};
+  let h=`<thead><tr><th class="l" style="border-bottom:none"></th><th class="l" style="border-bottom:none"></th>
+    <th class="grp" colspan="3">${MN[F.month-1]} — MTD</th><th style="width:8px;border:none"></th>
+    <th class="grp" colspan="3">Jan–${MN[F.month-1]} — YTD</th></tr>
+    <tr><th class="l">Segment</th><th class="l">Region</th>
+    <th>Booking</th><th>Target</th><th>Comp %</th><th style="border:none"></th>
+    <th>Booking</th><th>Target</th><th>Comp %</th></tr></thead><tbody>`;
+  segs.forEach(sg=>{
+    const live=regs.filter(r=>sum(T,ym,[r],[sg])>0 || sum(A,ym,[r],[sg])!==0);
+    live.forEach((r,i)=>{
+      const ma=sum(A,mm,[r],[sg]), mt=sum(T,mm,[r],[sg]), ya=sum(A,ym,[r],[sg]), yt=sum(T,ym,[r],[sg]);
+      h+=`<tr class="sub"><td class="seg">${i===0?(SNAME[sg]||sg):''}</td><td class="l">${RSHORT[r]||r}</td>
+        <td class="num">${ma.toFixed(2)}</td><td>${mt.toFixed(2)}</td>${cellPct(ma,mt)}<td style="border:none"></td>
+        <td class="num">${ya.toFixed(2)}</td><td>${yt.toFixed(2)}</td>${cellPct(ya,yt)}</tr>`;
+    });
+    const ma=sum(A,mm,regs,[sg]), mt=sum(T,mm,regs,[sg]), ya=sum(A,ym,regs,[sg]), yt=sum(T,ym,regs,[sg]);
+    h+=`<tr class="tot"><td class="seg">${(SNAME[sg]||sg)} Total</td><td></td>
+      <td class="num">${ma.toFixed(2)}</td><td>${mt.toFixed(2)}</td>${cellPct(ma,mt)}<td style="border:none"></td>
+      <td class="num">${ya.toFixed(2)}</td><td>${yt.toFixed(2)}</td>${cellPct(ya,yt)}</tr>`;
+  });
+  const ma=sum(A,mm,regs,segs), mt=sum(T,mm,regs,segs), ya=sum(A,ym,regs,segs), yt=sum(T,ym,regs,segs);
+  h+=`</tbody><tfoot><tr class="gt"><td class="seg">Grand Total</td><td></td>
+    <td class="num">${ma.toFixed(2)}</td><td>${mt.toFixed(2)}</td>${cellPct(ma,mt)}<td style="border:none"></td>
+    <td class="num">${ya.toFixed(2)}</td><td>${yt.toFixed(2)}</td>${cellPct(ya,yt)}</tr>`;
+
+  /* Booking outside the reporting grid is stated for the SAME period and filter
+     as every other row here, rather than being dropped or printed as a whole-year
+     number in a table filtered to one month. */
+  if (EXCL_TOTAL) {
+    const allR = regs.length===REGS.length, allS = segs.length===SEGS.length;
+    const rset={}, sset={}; regs.forEach(r=>rset[r]=1); segs.forEach(s=>sset[s]=1);
+    const slice = months => {
+      let t=0; const g={};
+      for(const k in EXCL_M){
+        const p=k.split('|');
+        if(months.indexOf(+p[0])<0) continue;
+        if(!allR && !rset[p[1]]) continue;
+        if(!allS && !sset[p[2]]) continue;
+        const lbl=p[1]+' / '+p[2];
+        t+=EXCL_M[k]; g[lbl]=(g[lbl]||0)+EXCL_M[k];
+      }
+      return {total:t, groups:g};
+    };
+    let label, sub, mCell, yCell, dim, tip;
+    if (EXCL_M) {
+      const xm=slice(mm), xy=slice(ym);
+      const names=Object.keys(xy.groups).sort((a,b)=>Math.abs(xy.groups[b])-Math.abs(xy.groups[a]));
+      const rest=EXCL_TOTAL - xy.total;
+      label='Excluded / Unmapped';
+      sub=names.length ? names.length+(names.length===1?' group':' groups') : 'none in this selection';
+      mCell=xm.total.toFixed(2); yCell=xy.total.toFixed(2);
+      dim=names.length?'.8':'.55';
+      tip='Booking outside the '+REGS.length+' × '+SEGS.length+' reporting grid. Not included in any figure above.'
+        + ' Recalculated for the current month and filter selection, like every other row here.'
+        + (Math.abs(rest)>0.005 ? '\n\nA further '+rest.toFixed(2)+' Cr sits outside this selection ('
+            +EXCL_TOTAL.toFixed(2)+' Cr excluded across the whole year).' : '')
+        + (names.length ? '\n\n'+names.map(k=>k+'   '+xy.groups[k].toFixed(2)+' Cr').join('\n') : '');
+    } else {
+      const names=Object.keys(EXCL).sort((a,b)=>Math.abs(EXCL[b])-Math.abs(EXCL[a]));
+      label='Excluded / Unmapped — whole year'; sub='all months, regions &amp; segments';
+      mCell='—'; yCell=EXCL_TOTAL.toFixed(2); dim='.62';
+      tip='Booking outside the reporting grid. This payload predates the per-month split, so it is'
+        + ' not recalculated for the current selection.\n\n'
+        + names.map(k=>k+'   '+EXCL[k].toFixed(2)+' Cr').join('\n');
+    }
+    h += '<tr class="sub xrow" title="'+OB.esc(tip).replace(/"/g,'&quot;')+'">'
+      + '<td class="seg" style="font-style:italic;opacity:'+dim+';font-family:var(--body);font-size:9.6px;text-transform:none">'+label+'</td>'
+      + '<td class="l" style="opacity:.6">'+sub+'</td>'
+      + '<td class="num" style="opacity:'+dim+'">'+mCell+'</td><td style="opacity:.55">—</td>'
+      + '<td class="pc" style="opacity:.55">—</td><td style="border:none"></td>'
+      + '<td class="num" style="opacity:'+dim+'">'+yCell+'</td>'
+      + '<td style="opacity:.55">—</td><td class="pc" style="opacity:.55">—</td></tr>';
+  }
+  h += '</tfoot>';
+  document.getElementById('pivot').innerHTML=h;
+  document.getElementById('pvHead').textContent=
+    MN[F.month-1]+' MTD & Jan–'+MN[F.month-1]+' YTD · ₹ Cr';
+}
+
+/* ---------------- comments ---------------- */
+const CIC={
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  up:'<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>',
+  down:'<path d="M23 18l-9.5-9.5-5 5L1 6"/><path d="M17 18h6v-6"/>',
+  alert:'<path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  bolt:'<path d="M13 2L3 14h9l-1 8 10-12h-9z"/>'
+};
+function buildComments(){
+  const regs=R(), segs=S(), mm=mtdM(), ym=ytdM();
+  const ma=sum(A,mm,regs,segs), mt=sum(T,mm,regs,segs);
+  const ya=sum(A,ym,regs,segs), yt=sum(T,ym,regs,segs);
+  const out=[];
+
+  const yOK=ya>=yt;
+  out.push({ic:yOK?CIC.up:CIC.down, key:'Overall — '+(yOK?'on track':'behind'),
+    tag:yOK?'AHEAD':'BEHIND', good:yOK,
+    body:`YTD booking <b>${ya.toFixed(1)} Cr</b> against target <b>${yt.toFixed(1)} Cr</b> — <b>${pct(yt?ya/yt:NaN)}</b> achieved, ${(ya-yt>=0?'ahead by ':'short by ')}<b>${Math.abs(ya-yt).toFixed(1)} Cr</b>. ${MN[F.month-1]} closed at <b>${ma.toFixed(1)} Cr</b> against <b>${mt.toFixed(1)} Cr</b> (${pct(mt?ma/mt:NaN)}).`});
+
+  const cells=[];
+  regs.forEach(r=>segs.forEach(s=>{
+    const a=sum(A,ym,[r],[s]), t=sum(T,ym,[r],[s]);
+    if(t>0.5) cells.push({r,s,a,t,p:a/t,gap:a-t});
+  }));
+  cells.sort((x,y)=>y.gap-x.gap);
+  const best=cells[0], worst=cells[cells.length-1];
+  if(best) out.push({ic:CIC.bolt, key:`${SNAME[best.s]||best.s} · ${RSHORT[best.r]||best.r} — strongest`, tag:'DRIVER', good:true,
+    body:`Biggest surplus of the year: <b>${best.a.toFixed(1)} Cr</b> booked against <b>${best.t.toFixed(1)} Cr</b> target, <b>+${best.gap.toFixed(1)} Cr</b> (${pct(best.p)}). This pocket is carrying the plan.`});
+  if(worst && worst!==best) out.push({ic:CIC.alert, key:`${SNAME[worst.s]||worst.s} · ${RSHORT[worst.r]||worst.r} — weakest`, tag:'ACTION', good:false,
+    body:`Largest drag: <b>${worst.a.toFixed(1)} Cr</b> against <b>${worst.t.toFixed(1)} Cr</b>, a shortfall of <b>${Math.abs(worst.gap).toFixed(1)} Cr</b> (${pct(worst.p)}). Closing half of this gap adds ${yt?(Math.abs(worst.gap)/2/yt*100).toFixed(1):'0.0'} points to YTD completion.`});
+
+  /* The month-against-year comparison this slot used to carry is now the trend
+     chart's job, and the chart says it better than a sentence could. The slot
+     goes to the sales people the target register does not know about, which
+     nothing else on the page states in words. */
+  const orphan = (DATA.unmatchedPeople && typeof DATA.unmatchedPeople === 'object')
+                   ? DATA.unmatchedPeople : {};
+  const orphanNames = Object.keys(orphan).sort((a,b)=>Math.abs(orphan[b])-Math.abs(orphan[a]));
+  if(orphanNames.length){
+    const tot = orphanNames.reduce((t,k)=>t+orphan[k],0);
+    out.push({ic:CIC.alert, key:'Coverage — booking without a target', tag:'RECONCILE', good:false,
+      body:`<b>${orphanNames.length}</b> sales ${orphanNames.length===1?'name books':'names book'} against no row in the target register, carrying <b>${tot.toFixed(1)} Cr</b> — ${(yt?tot/yt*100:0).toFixed(0)}% of YTD. Their booking counts everywhere on this page; only their personal target is blank. Largest: <b>${orphanNames[0]}</b> (${orphan[orphanNames[0]].toFixed(1)} Cr).`});
+  }
+
+  let open=0, inv=0, orders=0;
+  for(const m of ym) for(const r of regs) for(const s of segs){
+    open+=stBucket(m,r,s,OPEN_ST); inv+=stBucket(m,r,s,INV_ST); orders+=C[m+'|'+r+'|'+s]||0;}
+  const book=open+inv;
+  out.push({ic:CIC.box, key:'Order book — conversion', tag:'WATCH', good:false,
+    body:`<b>${open.toFixed(1)} Cr</b> of <b>${book.toFixed(1)} Cr</b> (${book?((open/book)*100).toFixed(0):'0'}%) still open, <b>${inv.toFixed(1)} Cr</b> invoiced across <b>${orders}</b> orders. Average order <b>${(book/Math.max(orders,1)).toFixed(2)} Cr</b>.`});
+
+  const fy=sum(T,Array.from({length:12},(_,i)=>i+1),regs,segs);
+  const run=F.month?ya/F.month:0, proj=run*12, left=12-F.month;
+  out.push({ic:CIC.flag, key:'Run rate — full year', tag:proj>=fy?'ON PACE':'SHORT PACE', good:proj>=fy,
+    body:`Current run rate <b>${run.toFixed(1)} Cr</b>/month projects <b>${proj.toFixed(0)} Cr</b> against the full-year plan of <b>${fy.toFixed(0)} Cr</b>. ${left>0?`The remaining ${left} month${left===1?'':'s'} need <b>${((fy-ya)/left).toFixed(1)} Cr</b>/month.`:'The year is complete.'}`});
+
+  const el = document.getElementById('comments');
+  /* Five slots. The first three are always the headline and the two extremes;
+     the rest are taken in the order they were pushed. */
+  el.innerHTML = out.slice(0,5).map(c=>
+    `<div class="cmt"><div class="ico"><svg viewBox="0 0 24 24">${c.ic}</svg></div>
+      <div class="ctxt"><div class="key">${c.key}<span class="tag ${c.good?'':'g'}">${c.tag}</span></div>
+      <div class="cbody">${c.body}</div></div></div>`).join('');
+  fitComments(el);
+}
+function fitComments(el){
+  const bodies = el.querySelectorAll('.cbody'), keys = el.querySelectorAll('.key');
+  let size = 9.4, key = 10.6, gap = 5;
+  const apply = ()=>{
+    bodies.forEach(b=>b.style.fontSize = size.toFixed(1)+'px');
+    keys.forEach(k=>k.style.fontSize = key.toFixed(1)+'px');
+    el.style.gap = gap.toFixed(1)+'px';
+  };
+  apply();
+  const icons = el.querySelectorAll('.ico');
+  let ico = 15, guard = 0;
+  while(el.scrollHeight > el.clientHeight && guard++ < 22 && size > 6.9){
+    size -= 0.25; key = Math.max(8.8, key - 0.2); gap = Math.max(1.5, gap - 0.4);
+    ico = Math.max(11, ico - 0.5);
+    icons.forEach(i=>{ i.style.width = i.style.height = i.style.flexBasis = ico.toFixed(1)+'px'; });
+    apply();
+  }
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  buildFilters(); buildKPIs(); buildPivot(); buildTrend(); buildMatrix();
+  buildPeople(); buildComments();
+  const rTxt = F.regions.size===REGS.length?'All regions':[...F.regions].map(r=>RSHORT[r]||r).join(' + ');
+  const sTxt = F.segments.size===SEGS.length?'All segments':[...F.segments].map(s=>SNAME[s]||s).join(' + ');
+  document.getElementById('subline').textContent =
+    `FY ${DATA.fiscalYear||''} · ${rTxt} · ${sTxt} · Actual against target · Values in ₹ Crore`;
+  document.getElementById('stampBig').textContent = MN[F.month-1].toUpperCase()+' '+(DATA.fiscalYear||'');
+  document.getElementById('stampSm').textContent = 'MTD · YTD Jan–'+MN[F.month-1];
+}
+function fit(){
+  /* fit-to-page: the largest scale that keeps the whole sheet on screen. These
+     two numbers must track .sheet's own width/height in the CSS above - if they
+     disagree the sheet either overflows the viewport or under-uses it. */
+  const SHEET_W=1700, SHEET_H=955;
+  const s=Math.min((window.innerWidth-10)/SHEET_W, (window.innerHeight-10)/SHEET_H, 2.2);
+  document.getElementById('scaler').style.transform='scale('+s+')';
+  document.body.style.height=(SHEET_H*s+6)+'px';
+}
+let fitTimer=null;
+window.addEventListener('resize',()=>{
+  fit();
+  clearTimeout(fitTimer);
+  fitTimer=setTimeout(()=>{ buildTrend(); buildPeople(); buildComments(); },120);
+});
+OB.boot(function(){
+  bindData(); render(); fit();
+  /* The first measure happens against fallback metrics if the web fonts are
+     still in flight; once they land, the cards that size themselves to their
+     own content have to be measured again. */
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      buildTrend(); buildPeople(); buildComments();
+    });
+  }
+});
+</script>
+</body>
+</html>

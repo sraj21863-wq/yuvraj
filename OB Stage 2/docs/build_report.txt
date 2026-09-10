@@ -1,0 +1,31 @@
+external link remap (sample -> stage 2): {1: 3, 2: 1, 3: 2}
+shared strings: 51172 from template + 2494 new = 53666
+cell formats: template kept, 226 sample formats appended
+MTD Merg                        490 rows loaded from sample (data to row 488)
+CPS                           16903 rows loaded from sample (data to row 16903)
+SOP                            1355 rows loaded from sample (data to row 1255)
+Invoice data_Raw               1675 rows loaded from sample (data to row 830)
+Sheet2                          816 rows loaded from sample (data to row 816)
+GK (2)                           77 rows loaded from sample (data to row 77)
+Monthly Booking Target (2)       61 rows loaded from sample (data to row 61)
+PH                               48 rows loaded from sample (data to row 48)
+FOC                               9 rows loaded from sample (data to row 9)
+CP                               19 rows loaded from sample (data to row 19)
+RT                                3 rows loaded from sample (data to row 3)
+RP                               26 rows loaded from sample (data to row 26)
+Sheet3                           63 rows loaded from sample (data to row 63)
+ASO_Raw                      export rows 2..487 pasted into A:AA; AB/AC lookups kept as formulas
+YTD Merg                     sample history rows 3..2316, ASO-derived tail from row 2317
+YTD Merg                     live block found at row 2964 in template, re-anchored by -647 to row 2317
+YTD Merg                     live block rebuilt from row 2964 of the template: 500 rows x 20 live columns
+YTD Merg                     10000 cached results written (sales person derived for 449 rows the sample left blank)
+YTD Merg                     2314 history rows + 500 live formula rows (ends at row 2816)
+Weekly Pivot                 kept from template unchanged
+Pivot                        kept from template unchanged
+Pivot Invoice                kept from template unchanged
+Sheet4                       kept from template unchanged
+Sheet5                       kept from template unchanged
+table tbl_ASO            on ASO_Raw            -> A1:AC487
+table tbl_Invoice        on Invoice data_Raw   -> A1:AQ830
+7 pivot caches set to refresh on open
+written /home/user/yuvraj/OB Stage 2/Order_Booking_Master_STAGE2.xlsx (14.8 MB)

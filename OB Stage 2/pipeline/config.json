@@ -1,0 +1,93 @@
+{
+  "_comment": "Everything the Stage 2 pipeline needs to know about the workbook. Nothing about the workbook's shape is hard-coded in ob_pipeline.py; if a column moves, change it here.",
+
+  "workbook": "../Order_Booking_Master_STAGE2.xlsx",
+  "workingCopy": ".cache/workbook-copy.xlsx",
+  "output": "../dashboard/data.js",
+  "outputJson": ".cache/data.json",
+  "reconciliation": "../docs/reconciliation.txt",
+
+  "fiscalYear": 2026,
+  "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+
+  "register": {
+    "sheet": "YTD Merg",
+    "headerRow": 2,
+    "firstDataRow": 3,
+    "columns": {
+      "region": "B",
+      "segment": "C",
+      "psNumber": "D",
+      "salesOrder": "F",
+      "customer": "H",
+      "status": "N",
+      "notInvoiced": "O",
+      "invoiced": "P",
+      "amountInr": "Q",
+      "bookingMonth": "S",
+      "salesPerson": "T"
+    },
+    "amountDivisor": 10000000
+  },
+
+  "targets": {
+    "sheet": "Monthly Booking Target (2)",
+    "headerRow": 1,
+    "firstDataRow": 2,
+    "columns": {
+      "salesPerson": "A",
+      "region": "B",
+      "territory": "C",
+      "segment": "D",
+      "year": "E",
+      "firstMonth": "F"
+    },
+    "_comment": "F..Q are the twelve monthly quotas, already in Rs Crore."
+  },
+
+  "grid": {
+    "regions": ["NORTH", "SOUTH/CENTRAL", "EAST/WEST"],
+    "segments": ["PH", "RP", "CP", "RT"]
+  },
+
+  "normalisation": {
+    "regions": {
+      "NORTH": "NORTH",
+      "NORTH ": "NORTH",
+      "SOUTH/CENTRAL": "SOUTH/CENTRAL",
+      "SOUTH": "SOUTH/CENTRAL",
+      "CENTRAL": "SOUTH/CENTRAL",
+      "EAST/WEST": "EAST/WEST",
+      "WEST/EAST": "EAST/WEST",
+      "EAST": "EAST/WEST",
+      "WEST": "EAST/WEST"
+    },
+    "segments": {
+      "PH": "PH",
+      "RP": "RP",
+      "CP": "CP",
+      "RT": "RT",
+      "RETAIL": "RT",
+      "POS": "RT"
+    },
+    "personAliases": {
+      "_comment": "register name -> Monthly Booking Target name. Only needed where the two registers spell a person differently; unmatched names are listed in reconciliation.txt rather than being dropped."
+    }
+  },
+
+  "statuses": {
+    "open": ["Open order", "Open"],
+    "invoiced": ["Invoiced"],
+    "_comment": "Anything else (Short close, Canceled) is counted and reported separately -- it is booking value that is neither open nor invoiced and must not be folded into either."
+  },
+
+  "freshness": {
+    "warnAfterHours": 6,
+    "staleAfterHours": 30
+  },
+
+  "service": {
+    "host": "127.0.0.1",
+    "port": 8787
+  }
+}

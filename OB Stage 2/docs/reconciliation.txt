@@ -1,0 +1,67 @@
+Order Booking Stage 2 -- reconciliation
+generated 2026-09-10T05:54:52+00:00
+source     Order_Booking_Master_STAGE2.xlsx (saved 2026-09-10T05:54:22+00:00)
+
+REGISTER
+  rows read from YTD Merg: 2800
+  rows with no booking month: 0
+  rows outside FY 2026: 0
+  booking inside the 3 x 4 grid: 399.95 Cr
+  booking outside the grid:      15.63 Cr
+      EAST/WEST / OTHERS                11.62 Cr
+      INTERNAL / OTHERS                  2.96 Cr
+      EXPORT / PH                        0.95 Cr
+      NORTH / FOC                        0.06 Cr
+      SOUTH/CENTRAL / QUALITY            0.03 Cr
+      SOUTH/CENTRAL / FOC                0.02 Cr
+      EAST/WEST / FOC                    0.00 Cr
+      INTERNAL / PH                      0.00 Cr
+
+STATUS FLAGS SEEN (column N)
+  Invoiced           1543 rows   counted as: invoiced
+  Open order         1254 rows   counted as: open
+  Short close           2 rows   counted as: NEITHER
+  Canceled              1 rows   counted as: NEITHER
+
+TARGETS
+  rows read from Monthly Booking Target (2): 59
+  full-year target inside the grid: 551.70 Cr
+
+SALES PEOPLE
+  names matched between the register and the target sheet: 29
+  matched across a spelling difference -- check these, and pin any that are
+  wrong with an entry in config.json normalisation.personAliases:
+      Agarwal, Tushar                  -> Tushar                       (word overlap)
+      Akash Deep, Akash                -> Deep,Akash                   (same words)
+      Daniel, Deni                     -> Deni Daniel                  (same words)
+      Dubey, Anshul                    -> Dubey,Anshul                 (same words)
+      Kumar Singh, Gaurav              -> Singh, Gaurav                (word overlap)
+      P, Sharath Kumar                 -> Kumar,Sharath                (same words)
+      Raghunandan Reddy, Badvel        -> Raghunandan                  (word overlap)
+      Sharma (deleted), Vivek          -> Sharma, Vivek                (same words)
+      Sharma, Shivam                   -> Shivam Sharma 2              (same words)
+      Sonu Majhi, Sonu                 -> Sonu, Majhi                  (same words)
+      Sunil Ponkshe, Nikhil            -> Nikhil                       (word overlap)
+      Uthayan B, Uthayan               -> B, Uthayan                   (same words)
+      Vijaykumar Joshi, Parth          -> Parth                        (word overlap)
+  booking with no target row (their booking still counts in every regional
+  figure; only their personal target column is blank):
+      Babar, Harshad                     48 orders     18.09 Cr
+      Sisodiya, Atul                     34 orders     12.15 Cr
+      Joseph, Midhun                    103 orders      6.21 Cr
+      POS-CENTRAL                        13 orders      2.30 Cr
+      J Bharadwaj, Ankitha               26 orders      1.87 Cr
+      NN (Roy deleted), Abhyudoy         19 orders      1.45 Cr
+      Shahbaz, Ahmed                      5 orders      1.09 Cr
+      Seth (deleted), Priyanka            2 orders      0.74 Cr
+      Suda, Sivanagaraju                  4 orders      0.54 Cr
+      Kumar A.S., Kiran                   2 orders      0.03 Cr
+  carrying a target but no booking yet:
+      Ankita
+      Chaturvedi, Sudhanshu/Ankitha
+      Dharm Bhatt
+      Nikhil/Ankitha
+      Parth/Ankitha
+      Shahbaaz
+      Shiva
+      TBH 3
