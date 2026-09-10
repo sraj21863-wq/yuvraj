@@ -1,0 +1,54 @@
+OB STAGE 2 - ORDER BOOKING DASHBOARD
+====================================
+
+You have just extracted this folder. Two ways in.
+
+
+JUST LOOK AT IT  (nothing to install)
+-------------------------------------
+Open this file in any browser:
+
+    dashboard\Order_Booking_Dashboard_standalone.html
+
+It is one self-contained file. Every filter and hover works. It shows the
+data as of the last refresh and says SNAPSHOT at the top, because it is
+reading a saved copy rather than your Excel.
+
+
+RUN IT LIVE OFF EXCEL  (needs Python once)
+------------------------------------------
+1. Double-click              pipeline\run_service.cmd
+2. Leave the black window open. Your browser opens at
+   http://127.0.0.1:8787/  and the banner turns green: LIVE.
+
+If Python is not installed, that window tells you exactly what to do and
+stops - it will not fail silently. The one-line install, in PowerShell:
+
+    winget install -e --id Python.Python.3.12
+
+or from https://www.python.org/downloads/ - and tick
+"Add python.exe to PATH" on the installer's FIRST screen.
+
+
+ENTERING NEW DATA
+-----------------
+Open  Order_Booking_Master_STAGE2.xlsx
+ -> sheet ASO_Raw -> click A2 -> paste values -> Ctrl+S -> F5 in the browser.
+
+STOP PASTING AT COLUMN AA. Columns AB and AC hold the formulas that turn
+the raw commission group and sales group into region and segment. Pasting
+over them is the one action that breaks the workbook.
+
+Full instructions, including what to do when an export would run past 500
+rows:  docs\DAILY_USE.md
+
+
+WHAT IS IN HERE
+---------------
+Order_Booking_Master_STAGE2.xlsx   the workbook you paste into
+dashboard\                          the page
+pipeline\                           run_service.cmd, refresh.cmd, roll_forward.cmd
+docs\DAILY_USE.md                   day-to-day instructions
+docs\PIPELINE.md                    how the workbook feeds the dashboard
+docs\reconciliation.txt             what the last refresh could not match
+README.md                           everything, in one place

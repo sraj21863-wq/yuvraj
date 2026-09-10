@@ -91,7 +91,7 @@ window.OB_SNAPSHOT = {
   "Open order": 1254,
   "Short close": 2
  },
- "checksum": "559548cd4ae5adc6",
+ "checksum": "5629674a72a2667b",
  "count": {
   "1|EAST/WEST|CP": 18,
   "1|EAST/WEST|PH": 20,
@@ -208,7 +208,7 @@ window.OB_SNAPSHOT = {
   "Sunil Ponkshe, Nikhil": "Nikhil",
   "Vijaykumar Joshi, Parth": "Parth"
  },
- "generatedAt": "2026-09-10T06:39:50+00:00",
+ "generatedAt": "2026-09-10T06:47:40+00:00",
  "invoicedAmount": {
   "1|EAST/WEST|CP": 6.756253442999999,
   "1|EAST/WEST|PH": 0.453338191,
