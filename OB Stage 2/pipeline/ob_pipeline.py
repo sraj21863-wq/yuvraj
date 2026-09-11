@@ -238,6 +238,7 @@ def build(cfg, workbook_path, source_via, warn):
     excluded, excluded_by_month = {}, {}
     excluded_total = 0.0
     people_seen = {}
+    order_rows = {}
     wrong_year = undated = 0
     all_statuses = {}
 
@@ -257,6 +258,8 @@ def build(cfg, workbook_path, source_via, warn):
         all_statuses[r['status'] or '(blank)'] = all_statuses.get(r['status'] or '(blank)', 0) + 1
 
         if region in regions and segment in segments:
+            if r['order']:
+                order_rows.setdefault(r['order'], []).append(r['value'])
             key = '%d|%s|%s' % (month, region, segment)
             add(actual, key, r['value'])
             count[key] = count.get(key, 0) + 1
@@ -275,6 +278,16 @@ def build(cfg, workbook_path, source_via, warn):
             add(excluded, label, r['value'])
             add(excluded_by_month, '%d|%s|%s' % (month, region, segment), r['value'])
             excluded_total += r['value']
+
+    # The same sales order appearing twice is the signature of a paste gone
+    # wrong -- an export loaded over a live block whose rows had already been
+    # frozen into history, say. It is worth catching loudly, because nothing
+    # else about it looks wrong: the totals are simply too big.
+    duplicates = {k: v for k, v in order_rows.items() if len(v) > 1}
+    if duplicates:
+        over = sum(sum(v[1:]) for v in duplicates.values())
+        warn('%d sales orders appear more than once in the register, counting %.2f Cr twice '
+             '-- see reconciliation.txt' % (len(duplicates), over))
 
     if undated:
         warn('%d register rows carry no booking month and are not in any figure' % undated)
@@ -409,8 +422,10 @@ def build(cfg, workbook_path, source_via, warn):
         'peopleWithoutBooking': idle,
         'undatedRows': undated,
         'otherYearRows': wrong_year,
+        'duplicateOrders': {k: len(v) for k, v in duplicates.items()},
     }
     return payload, {
+        'duplicates': duplicates,
         'matched': matched, 'fuzzy': fuzzy, 'unmatched': unmatched, 'idle': idle,
         'booked_without_target': booked_without_target,
         'statuses': all_statuses,
@@ -437,6 +452,15 @@ def write_reconciliation(path, payload, detail):
     for label, v in sorted(payload['excluded'].items(), key=lambda kv: -abs(kv[1])):
         add('      %-28s %10.2f Cr' % (label, v))
     add('')
+    if detail.get('duplicates'):
+        add('DUPLICATE SALES ORDERS  -- these are counted more than once')
+        add('  The usual cause is an export pasted into ASO_Raw whose orders had')
+        add('  already been frozen into the history above the live block. Run')
+        add('  roll_forward.py --dry-run to see where the live block sits.')
+        for k, v in sorted(detail['duplicates'].items(),
+                           key=lambda kv: -sum(kv[1][1:]))[:40]:
+            add('      %-16s %d times   %8.2f Cr counted twice' % (k, len(v), sum(v[1:])))
+        add('')
     add('STATUS FLAGS SEEN (column N)')
     for s, n in sorted(detail['statuses'].items(), key=lambda kv: -kv[1]):
         bucket = ('open' if s in payload['openStatuses']
