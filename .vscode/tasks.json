@@ -1,0 +1,148 @@
+// Open the repository root in VS Code and these appear under
+//   Terminal -> Run Task...
+// "Start dashboard" is the default build task, so Ctrl+Shift+B runs it too.
+//
+// The tasks use "process" rather than "shell" on purpose: VS Code then quotes
+// the paths itself, which matters because "OB Stage 2" contains spaces and
+// PowerShell -- the default terminal on Windows -- will not run an unquoted
+// path with a space in it.
+//
+// On Windows they call the .cmd launchers rather than python directly. Those
+// find a working Python, install openpyxl on first run, and print what to do
+// when Python is missing instead of failing silently.
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start dashboard  (live, reads the workbook)",
+      "detail": "Serves the page and the data on http://127.0.0.1:8787/ and rebuilds it whenever the workbook is saved. Ctrl+C in the terminal stops it.",
+      "type": "process",
+      "windows": {
+        "command": "${workspaceFolder}\\OB Stage 2\\pipeline\\run_service.cmd"
+      },
+      "linux": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/serve.py"
+        ]
+      },
+      "osx": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/serve.py"
+        ]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true,
+        "focus": false
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Refresh offline snapshot  (dashboard/data.js)",
+      "detail": "Rebuilds the snapshot the page falls back to when the service is not running. Run this before mailing the standalone copy.",
+      "type": "process",
+      "windows": {
+        "command": "${workspaceFolder}\\OB Stage 2\\pipeline\\refresh.cmd"
+      },
+      "linux": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/ob_pipeline.py"
+        ]
+      },
+      "osx": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/ob_pipeline.py"
+        ]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true,
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Roll forward  (freeze the live block)",
+      "detail": "Run AFTER saving in Excel and BEFORE pasting an export over the last one. Shows the plan and asks before it changes anything.",
+      "type": "process",
+      "windows": {
+        "command": "${workspaceFolder}\\OB Stage 2\\pipeline\\roll_forward.cmd"
+      },
+      "linux": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/roll_forward.py"
+        ]
+      },
+      "osx": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/roll_forward.py"
+        ]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true,
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Where does the live block sit?  (changes nothing)",
+      "detail": "Prints how many register rows are live, which ASO_Raw rows they read, and whether a roll forward is due.",
+      "type": "process",
+      "windows": {
+        "command": "py",
+        "args": [
+          "-3",
+          "${workspaceFolder}\\OB Stage 2\\pipeline\\roll_forward.py",
+          "--dry-run"
+        ]
+      },
+      "linux": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/roll_forward.py",
+          "--dry-run"
+        ]
+      },
+      "osx": {
+        "command": "python3",
+        "args": [
+          "OB Stage 2/pipeline/roll_forward.py",
+          "--dry-run"
+        ]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true,
+        "focus": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

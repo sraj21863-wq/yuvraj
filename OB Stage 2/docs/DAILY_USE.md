@@ -231,27 +231,42 @@ band then says "via working copy" so you know it happened.
 
 ## Running it from VS Code
 
-You do not need VS Code for this — `run_service.cmd` does the same job with a
-double-click. But if you would rather work in VS Code:
+### The short way — nothing to type
 
 1. **File → Open Folder** and pick the `OB Stage 2` folder (the folder itself,
-   not the one above it). The Explorer panel on the left should show
-   `dashboard`, `docs` and `pipeline`.
-2. **Terminal → New Terminal** (or Ctrl+`). It opens at the folder you just
-   opened.
-3. First time only, install the one library the pipeline needs:
+   not the one above it). The Explorer panel should show `dashboard`, `docs`
+   and `pipeline`.
+2. Press **Ctrl+Shift+B**.
+
+That is it. The folder ships a `.vscode/tasks.json`, so *Start dashboard* is
+already VS Code's default build task. **Terminal → Run Task…** shows all four:
+
+| Task | What it does |
+|---|---|
+| Start dashboard | serves the page and the data, live off the workbook |
+| Refresh offline snapshot | rebuilds `dashboard/data.js` |
+| Roll forward | freezes the live block, asks first |
+| Where does the live block sit? | read-only, changes nothing |
+
+If you opened the repository root rather than `OB Stage 2`, the same four tasks
+are there — there is a `.vscode/tasks.json` at that level too, pathed for it.
+
+### The long way — typing it yourself
+
+1. **Terminal → New Terminal** (or Ctrl+`). It opens at the folder you opened.
+2. First time only, install the one library the pipeline needs:
 
    ```
    pip install -r "pipeline/requirements.txt"
    ```
 
-4. Start the service:
+3. Start the service:
 
    ```
    python "pipeline/serve.py"
    ```
 
-5. The terminal prints:
+4. The terminal prints:
 
    ```
    Order Booking Stage 2 service
@@ -263,7 +278,7 @@ double-click. But if you would rather work in VS Code:
    ```
 
    Ctrl-click that first address, or type it into your browser.
-6. Leave the terminal running while you use the dashboard. **Ctrl+C** stops it.
+5. Leave the terminal running while you use the dashboard. **Ctrl+C** stops it.
 
 **Do not use the Live Server extension for this page.** Live Server serves files
 on port 5500 and knows nothing about the workbook, so the dashboard cannot reach

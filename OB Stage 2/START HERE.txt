@@ -21,6 +21,10 @@ RUN IT LIVE OFF EXCEL  (needs Python once)
 2. Leave the black window open. Your browser opens at
    http://127.0.0.1:8787/  and the banner turns green: LIVE.
 
+   In VS Code instead:  File > Open Folder > pick this folder, then
+   press Ctrl+Shift+B.  Nothing to type - the tasks are set up.
+   (Or Terminal > Run Task... to see all four.)
+
 If Python is not installed, that window tells you exactly what to do and
 stops - it will not fail silently. The one-line install, in PowerShell:
 
