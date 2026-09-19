@@ -1,7 +1,12 @@
 OB STAGE 2 - ORDER BOOKING DASHBOARD
 ====================================
 
-You have just extracted this folder. Two ways in.
+If you have not extracted this yet, you do not need to by hand:
+double-click  Setup_OB_Stage_2.cmd  and it finds the zip, extracts it
+to C:\OB, and starts the dashboard. Safe to run twice - it will not
+overwrite a workbook you have already been pasting into.
+
+Otherwise, two ways in.
 
 
 JUST LOOK AT IT  (nothing to install)
